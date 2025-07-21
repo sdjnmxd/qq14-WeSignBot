@@ -1,0 +1,54 @@
+{
+  "name": "qq14-wesignbot",
+  "version": "1.0.0",
+  "description": "QQ14微信小程序签到脚本",
+  "main": "dist/index.js",
+  "author": "sdjnmxd",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sdjnmxd/qq14-WeSignBot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sdjnmxd/qq14-WeSignBot/issues"
+  },
+  "homepage": "https://github.com/sdjnmxd/qq14-WeSignBot#readme",
+  "keywords": [
+    "qq14",
+    "wechat",
+    "miniprogram",
+    "automation",
+    "sign-in",
+    "bot",
+    "typescript",
+    "nodejs"
+  ],
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "start:prod": "tsc && NODE_ENV=production node dist/index.js",
+    "start:multi": "USE_MULTI_ACCOUNT=true ts-node src/index.ts",
+    "start:multi:prod": "tsc && NODE_ENV=production USE_MULTI_ACCOUNT=true node dist/index.js",
+    "dev": "nodemon --watch src --exec ts-node src/index.ts",
+    "dev:multi": "USE_MULTI_ACCOUNT=true nodemon --watch src --exec ts-node src/index.ts",
+    "hot": "ts-node-dev src/index.ts",
+    "hot:multi": "USE_MULTI_ACCOUNT=true ts-node-dev src/index.ts",
+    "build": "tsc",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^17.2.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.0.0",
+    "@types/node": "^20.0.0",
+    "jest": "^29.0.0",
+    "nodemon": "^3.1.10",
+    "ts-jest": "^29.0.0",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.0.0"
+  }
+}

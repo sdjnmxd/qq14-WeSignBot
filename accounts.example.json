@@ -1,0 +1,30 @@
+{
+  "accounts": [
+    {
+      "id": "account1",
+      "name": "账号1",
+      "cookie": "openid=YOUR_OPENID_HERE; acctype=qc; appid=YOUR_APPID_HERE; access_token=YOUR_ACCESS_TOKEN_HERE",
+      "enabled": true
+    },
+    {
+      "id": "account2", 
+      "name": "账号2",
+      "cookie": "openid=YOUR_OPENID_HERE; acctype=qc; appid=YOUR_APPID_HERE; access_token=YOUR_ACCESS_TOKEN_HERE",
+      "enabled": true
+    },
+    {
+      "id": "account3",
+      "name": "账号3 特别指定运行时间",
+      "cookie": "openid=YOUR_OPENID_HERE; acctype=qc; appid=YOUR_APPID_HERE; access_token=YOUR_ACCESS_TOKEN_HERE",
+      "schedule": {
+        "times": ["09:00", "13:00", "19:00"],
+        "runOnStart": false
+      },
+      "enabled": true
+    }
+  ],
+  "globalSchedule": {
+    "times": ["08:00", "12:00", "18:00"],
+    "runOnStart": true
+  }
+} 
