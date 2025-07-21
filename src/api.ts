@@ -2,10 +2,11 @@ import axios, { AxiosInstance } from 'axios';
 import { log } from './utils/logger';
 import dotenv from 'dotenv';
 dotenv.config();
+import { ConfigManager } from './configManager';
 
 export interface ApiConfig {
   cookie: string;
-  configManager: any;
+  configManager: ConfigManager;
 }
 
 export interface ApiResponse<T = unknown> {

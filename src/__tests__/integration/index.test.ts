@@ -51,7 +51,7 @@ mockRewardManager = {} as unknown as jest.Mocked<RewardManager>;
       openid: 'test-openid'
     };
 
-    const mockConfigManager = { getGlobalUA: () => '', getGlobalReferer: () => '' };
+    const mockConfigManager = { getGlobalUA: () => '', getGlobalReferer: () => '' } as unknown as import('../../configManager').ConfigManager;
     const expectedApiConfig = { ...config, configManager: mockConfigManager };
 
     new ApiClient(expectedApiConfig);
