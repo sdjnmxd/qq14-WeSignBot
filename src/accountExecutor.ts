@@ -4,8 +4,15 @@ import { RewardManager } from './rewardManager';
 import { ApiClient } from './api';
 import { FrequencyController } from './frequencyController';
 import { log } from './utils/logger';
+import { ConfigManager } from './configManager';
 
 export class AccountExecutor {
+  private configManager: ConfigManager;
+
+  constructor(configManager: ConfigManager) {
+    this.configManager = configManager;
+  }
+
   /**
    * 执行单个账号的任务
    */
@@ -19,8 +26,8 @@ export class AccountExecutor {
       log.info(`=== 执行账号: ${account.name || account.id} ===`);
 
       // 创建API客户端
-      const apiClient = new ApiClient({ cookie: account.cookie });
-      const frequencyController = new FrequencyController();
+      const apiClient = new ApiClient({ cookie: account.cookie, configManager: this.configManager });
+      const frequencyController = new FrequencyController(this.configManager);
 
       // 创建任务管理器
       const taskManager = new TaskManager(apiClient, frequencyController);

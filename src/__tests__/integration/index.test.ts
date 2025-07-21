@@ -51,12 +51,21 @@ mockRewardManager = {} as unknown as jest.Mocked<RewardManager>;
       openid: 'test-openid'
     };
 
-    new ApiClient(config);
-    new FrequencyController();
+    const mockConfigManager = { getGlobalUA: () => '', getGlobalReferer: () => '' };
+    const expectedApiConfig = { ...config, configManager: mockConfigManager };
+
+    new ApiClient(expectedApiConfig);
+    new FrequencyController({ getMinDelay: () => 1000, getMaxDelay: () => 3000 });
     new TaskManager(mockApiClient, mockFrequencyController);
     new RewardManager(mockApiClient);
 
-    expect(ApiClient).toHaveBeenCalledWith(config);
+    expect(ApiClient).toHaveBeenCalledWith(expect.objectContaining({
+      authorization: 'test-auth',
+      cookie: 'test-cookie',
+      unionid: 'test-unionid',
+      openid: 'test-openid',
+      configManager: expect.any(Object)
+    }));
     expect(FrequencyController).toHaveBeenCalled();
     expect(TaskManager).toHaveBeenCalledWith(mockApiClient, mockFrequencyController);
     expect(RewardManager).toHaveBeenCalledWith(mockApiClient);

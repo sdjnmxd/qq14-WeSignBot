@@ -91,8 +91,9 @@ async function runSingleAccountMode(): Promise<void> {
   }
 
   // 初始化客户端
-  const apiClient = new ApiClient(CONFIG);
-  const frequencyController = new FrequencyController();
+  const configManager = new ConfigManager();
+  const apiClient = new ApiClient({ ...CONFIG, configManager });
+  const frequencyController = new FrequencyController(configManager);
 
   // 验证登录态
   log.info('开始验证登录态...');

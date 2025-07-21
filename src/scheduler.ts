@@ -12,7 +12,7 @@ export class Scheduler {
 
   constructor(configManager: ConfigManager) {
     this.configManager = configManager;
-    this.accountExecutor = new AccountExecutor();
+    this.accountExecutor = new AccountExecutor(configManager);
     this.initializeExecutionStatus();
   }
 

@@ -35,7 +35,13 @@ describe('ApiClient', () => {
       cookie: 'test-cookie'
     };
 
-    apiClient = new ApiClient(config);
+    apiClient = new ApiClient({ 
+      ...config, 
+      configManager: { 
+        getGlobalUA: () => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF WindowsWechat(0x63090c33)XWEB/14185', 
+        getGlobalReferer: () => 'https://servicewechat.com/wx9d135ab589f8beb9/21/page-frame.html' 
+      } 
+    });
   });
 
   afterEach(() => {
@@ -49,7 +55,7 @@ describe('ApiClient', () => {
         timeout: 10000,
         headers: expect.objectContaining({
           'Cookie': 'test-cookie',
-          'User-Agent': expect.any(String),
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF WindowsWechat(0x63090c33)XWEB/14185',
           'Content-Type': 'application/json',
           'Accept': '*/*',
           'Referer': 'https://servicewechat.com/wx9d135ab589f8beb9/21/page-frame.html'

@@ -2,6 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { MultiAccountConfig, AccountConfig, ScheduleConfig } from './types';
 import { log } from './utils/logger';
+import dotenv from 'dotenv';
+dotenv.config();
 
 export class ConfigManager {
   private configPath: string;
@@ -231,6 +233,34 @@ export class ConfigManager {
     this.config.globalSchedule = schedule;
     this.saveConfig(this.config);
     log.info('已更新全局执行计划');
+  }
+
+  /**
+   * 获取全局 UA，优先级：env > accounts.json > 默认
+   */
+  getGlobalUA(): string {
+    return process.env.WECHAT_UA || this.config.globalUA || '';
+  }
+
+  /**
+   * 获取全局 Referer，优先级：env > accounts.json > 默认
+   */
+  getGlobalReferer(): string {
+    return process.env.WECHAT_REFERER || this.config.globalReferer || '';
+  }
+
+  /**
+   * 获取全局最小延迟，优先级：env > accounts.json > 默认
+   */
+  getMinDelay(): number {
+    return Number(process.env.MIN_DELAY_MS) || this.config.globalMinDelay || 1000;
+  }
+
+  /**
+   * 获取全局最大延迟，优先级：env > accounts.json > 默认
+   */
+  getMaxDelay(): number {
+    return Number(process.env.MAX_DELAY_MS) || this.config.globalMaxDelay || 3000;
   }
 
   /**

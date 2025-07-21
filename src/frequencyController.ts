@@ -8,9 +8,14 @@ export class FrequencyController {
   private minDelay: number;
   private maxDelay: number;
 
-  constructor(minDelay: number = 1000, maxDelay: number = 3000) {
-    this.minDelay = minDelay;
-    this.maxDelay = maxDelay;
+  /**
+   * @param minDelay 构造参数最小延迟（可选）
+   * @param maxDelay 构造参数最大延迟（可选）
+   * @param configObj 可选，支持 { globalMinDelay, globalMaxDelay } 配置对象
+   */
+  constructor(configManager: { getMinDelay: () => number; getMaxDelay: () => number }) {
+    this.minDelay = configManager.getMinDelay();
+    this.maxDelay = configManager.getMaxDelay();
   }
 
   /**

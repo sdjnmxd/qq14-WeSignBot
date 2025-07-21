@@ -1,8 +1,12 @@
 import axios, { AxiosInstance } from 'axios';
 import { log } from './utils/logger';
+import { ConfigManager } from './configManager';
+import dotenv from 'dotenv';
+dotenv.config();
 
 export interface ApiConfig {
   cookie: string;
+  configManager: any;
 }
 
 export interface ApiResponse<T = unknown> {
@@ -17,15 +21,17 @@ export class ApiClient {
 
   constructor(config: ApiConfig) {
     this.config = config;
+    const ua = config.configManager.getGlobalUA();
+    const referer = config.configManager.getGlobalReferer();
     this.client = axios.create({
       baseURL: 'https://minigame.guangzi.qq.com/starweb',
       timeout: 10000,
       headers: {
         'Cookie': config.cookie,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF WindowsWechat(0x63090c33)XWEB/14185',
+        'User-Agent': ua,
         'Content-Type': 'application/json',
         'Accept': '*/*',
-        'Referer': 'https://servicewechat.com/wx9d135ab589f8beb9/21/page-frame.html'
+        'Referer': referer
       }
     });
 

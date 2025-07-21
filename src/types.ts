@@ -295,6 +295,10 @@ export interface ScheduleConfig {
 export interface MultiAccountConfig {
   accounts: AccountConfig[];
   globalSchedule?: ScheduleConfig; // 全局默认执行计划
+  globalUA?: string;
+  globalReferer?: string;
+  globalMinDelay?: number;
+  globalMaxDelay?: number;
 }
 
 // 账号执行状态
