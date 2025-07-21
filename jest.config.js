@@ -3,13 +3,8 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
   testMatch: [
-    '**/__tests__/**/*.test.ts', 
+    '**/__tests__/**/*.test.ts',
     '**/?(*.)+(spec|test).ts'
-  ],
-  testPathIgnorePatterns: [
-    '<rootDir>/src/__tests__/setup/',
-    '<rootDir>/src/__tests__/fixtures/',
-    '<rootDir>/node_modules/'
   ],
   transform: {
     '^.+\\.ts$': 'ts-jest',
@@ -17,13 +12,24 @@ module.exports = {
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
-    '!src/__tests__/**',
+    '!src/**/__tests__/**',
+    '!src/**/*.test.ts',
+    '!src/**/*.spec.ts',
+    '!src/index.ts',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
+  coverageThreshold: {
+    global: {
+      branches: 70,
+      functions: 70,
+      lines: 70,
+      statements: 70
+    }
+  },
+  testTimeout: 30000,
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup/testSetup.ts'],
-  testTimeout: 10000,
-  // 减少测试输出噪音
-  silent: false,
-  verbose: false
+  verbose: true,
+  clearMocks: true,
+  restoreMocks: true,
 }; 
