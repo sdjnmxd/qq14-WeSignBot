@@ -6,7 +6,7 @@ import { log } from './utils/logger';
 export class Scheduler {
   private configManager: ConfigManager;
   private accountExecutor: AccountExecutor;
-  private timers: Map<string, NodeJS.Timeout> = new Map();
+  private timers: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private executionStatus: Map<string, AccountExecutionStatus> = new Map();
   private isRunning: boolean = false;
 

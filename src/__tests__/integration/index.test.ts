@@ -19,15 +19,15 @@ describe('Index Module', () => {
     jest.clearAllMocks();
 
     // Setup mocks
-    mockApiClient = {} as any;
-    mockFrequencyController = {} as any;
-    mockRewardManager = {} as any;
+    mockApiClient = {} as unknown as jest.Mocked<ApiClient>;
+mockFrequencyController = {} as unknown as jest.Mocked<FrequencyController>;
+mockRewardManager = {} as unknown as jest.Mocked<RewardManager>;
     
     mockTaskManager = {
       verifyLogin: jest.fn().mockResolvedValue(undefined),
       showTaskStatus: jest.fn().mockResolvedValue(undefined),
       executeAllTasks: jest.fn().mockResolvedValue(undefined)
-    } as any;
+    } as unknown as jest.Mocked<TaskManager>;
 
     (ApiClient as jest.MockedClass<typeof ApiClient>).mockImplementation(() => mockApiClient);
     (FrequencyController as jest.MockedClass<typeof FrequencyController>).mockImplementation(() => mockFrequencyController);
@@ -35,7 +35,7 @@ describe('Index Module', () => {
     (RewardManager as jest.MockedClass<typeof RewardManager>).mockImplementation(() => mockRewardManager);
 
     // Mock process.exit
-    jest.spyOn(process, 'exit').mockImplementation((() => {}) as any);
+    jest.spyOn(process, 'exit').mockImplementation((() => {}) as jest.MockedFunction<typeof process.exit>);
   });
 
   afterEach(() => {

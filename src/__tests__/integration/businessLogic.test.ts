@@ -1,8 +1,8 @@
 import { TaskManager } from '../../taskManager';
-import { RewardManager } from '../../rewardManager';
+
 import { ApiClient } from '../../api';
 import { FrequencyController } from '../../frequencyController';
-import { TaskType, TaskStatus, Task } from '../../types';
+import { TaskType, TaskStatus, Task, TaskHandler } from '../../types';
 
 // Mock dependencies
 jest.mock('../../rewardManager', () => ({
@@ -13,7 +13,7 @@ jest.mock('../../rewardManager', () => ({
 
 describe('业务逻辑边界测试', () => {
   let taskManager: TaskManager;
-  let rewardManager: RewardManager;
+
   let mockApiClient: jest.Mocked<ApiClient>;
   let mockFrequencyController: jest.Mocked<FrequencyController>;
 
@@ -27,16 +27,16 @@ describe('业务逻辑边界测试', () => {
       toggleLike: jest.fn(),
       claimSignReward: jest.fn(),
       claimTaskReward: jest.fn()
-    } as any;
+    } as unknown as jest.Mocked<ApiClient>;
 
     mockFrequencyController = {
       randomDelay: jest.fn().mockResolvedValue(undefined),
       setDelayRange: jest.fn(),
       getDelayRange: jest.fn().mockReturnValue({ min: 1000, max: 3000 })
-    } as any;
+    } as unknown as jest.Mocked<FrequencyController>;
 
     taskManager = new TaskManager(mockApiClient, mockFrequencyController);
-    rewardManager = new RewardManager(mockApiClient);
+    
   });
 
   describe('任务进度边界情况', () => {
@@ -151,7 +151,7 @@ describe('业务逻辑边界测试', () => {
         }
       });
 
-      const handler = (taskManager as any).handlers.get(TaskType.VIEW_POST);
+      const handler = (taskManager as any).handlers.get(TaskType.VIEW_POST)!;
       const progress = await handler.getProgress(task, mockApiClient);
       
       expect(progress).toBe(2); // 应该使用API返回的最新进度
@@ -232,7 +232,7 @@ describe('业务逻辑边界测试', () => {
         });
 
       // 测试获取大量帖子时的分页逻辑
-      const handler = (taskManager as any).handlers.get(TaskType.VIEW_POST);
+      const handler = (taskManager as any).handlers.get(TaskType.VIEW_POST)!;
       const posts = await handler.getAllAvailablePosts(mockApiClient, 15);
       
       expect(posts).toHaveLength(15);
@@ -256,7 +256,7 @@ describe('业务逻辑边界测试', () => {
       // 模拟连续的API失败
       mockApiClient.getPosts.mockRejectedValue(new Error('Network error'));
 
-      const handler = (taskManager as any).handlers.get(TaskType.VIEW_POST);
+      const handler = (taskManager as any).handlers.get(TaskType.VIEW_POST)!;
       const context = {
         apiClient: mockApiClient,
         frequencyController: mockFrequencyController
@@ -308,7 +308,7 @@ describe('业务逻辑边界测试', () => {
         .mockRejectedValueOnce(new Error('点赞失败'))
         .mockResolvedValueOnce({ ret: 0, errmsg: '', data: { pack: '{"count":"2"}' } });
 
-      const handler = (taskManager as any).handlers.get(TaskType.LIKE_POST);
+      const handler = (taskManager as any).handlers.get(TaskType.LIKE_POST)!;
       const context = {
         apiClient: mockApiClient,
         frequencyController: mockFrequencyController

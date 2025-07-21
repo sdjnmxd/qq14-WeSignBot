@@ -71,7 +71,7 @@ export class LikePostHandler implements TaskHandler {
             log.debug(`点赞失败，跳过: ${post.title}`);
           }
           
-          await frequencyController.randomDelay();
+          await (frequencyController as { randomDelay: () => Promise<void> }).randomDelay();
           
         } catch (error) {
           log.debug(`点赞帖子失败，跳过: ${post.title}`);
@@ -130,7 +130,7 @@ export class LikePostHandler implements TaskHandler {
             log.warn(`⚠️  进度未变化: ${progressBefore} -> ${progressAfter}`);
           }
           
-          await frequencyController.randomDelay();
+          await (frequencyController as { randomDelay: () => Promise<void> }).randomDelay();
           
         } catch (error) {
           log.debug(`取消重新点赞失败，跳过: ${post.title}`);
@@ -160,7 +160,7 @@ export class LikePostHandler implements TaskHandler {
     }
   }
 
-  async getProgress(task: Task, apiClient?: any): Promise<number> {
+  async getProgress(task: Task, apiClient?: unknown): Promise<number> {
     if (!apiClient) {
       // 如果没有apiClient，返回任务中的progress字段
       return task.progress;
@@ -168,7 +168,7 @@ export class LikePostHandler implements TaskHandler {
     
     try {
       // 通过API获取最新的任务状态
-      const response = await apiClient.getFuliStatus();
+      const response = await (apiClient as { getFuliStatus: () => Promise<{ ret: number; errmsg: string; data: { pack: string } }> }).getFuliStatus();
       
       if (response.ret !== 0) {
         log.debug(`获取福利状态失败: ${response.errmsg}，使用缓存进度`);
@@ -179,7 +179,7 @@ export class LikePostHandler implements TaskHandler {
       const tasks = data.tasks || [];
       
       // 查找对应的任务
-      const currentTask = tasks.find((t: any) => t.id === task.id);
+      const currentTask = tasks.find((t: { id: string }) => t.id === task.id);
       
       if (currentTask) {
         log.debug(`获取到实时进度: ${currentTask.progress}/${currentTask.required}`);
@@ -194,10 +194,18 @@ export class LikePostHandler implements TaskHandler {
     }
   }
 
-  private async getAllAvailablePosts(apiClient: any, needCount: number): Promise<any[]> {
+  private async getAllAvailablePosts(apiClient: unknown, needCount: number): Promise<Array<{
+    postId: string;
+    title: string;
+    liked: boolean;
+  }>> {
     log.debug(`获取帖子列表，至少需要 ${needCount} 个可操作的帖子...`);
     
-    let allPosts: any[] = [];
+    let allPosts: Array<{
+      postId: string;
+      title: string;
+      liked: boolean;
+    }> = [];
     let lastId: string | undefined = undefined;
     let pageNum = 1;
     const maxPages = 15; // 增加最大页数，确保有足够的帖子可供操作
@@ -205,7 +213,7 @@ export class LikePostHandler implements TaskHandler {
     while (pageNum <= maxPages) {
       log.debug(`获取第 ${pageNum} 页帖子${lastId ? ` (lastId: ${lastId})` : ''}...`);
       
-      const response = await apiClient.getPosts(lastId);
+      const response = await (apiClient as { getPosts: (lastId?: string) => Promise<{ ret: number; errmsg: string; data: { pack: string } }> }).getPosts(lastId);
       
       if (response.ret !== 0) {
         log.warn(`获取第 ${pageNum} 页帖子失败: ${response.errmsg}`);
@@ -254,10 +262,14 @@ export class LikePostHandler implements TaskHandler {
     return allPosts;
   }
 
-  private async getPosts(apiClient: any): Promise<any[]> {
+  private async getPosts(apiClient: unknown): Promise<Array<{
+    postId: string;
+    title: string;
+    liked: boolean;
+  }>> {
     // 保持向后兼容，但现在推荐使用 getAllAvailablePosts
     log.debug('获取帖子列表...');
-    const response = await apiClient.getPosts();
+    const response = await (apiClient as { getPosts: () => Promise<{ ret: number; errmsg: string; data: { pack: string } }> }).getPosts();
     
     if (response.ret !== 0) {
       throw new Error(`获取帖子列表失败: ${response.errmsg}`);
@@ -270,11 +282,11 @@ export class LikePostHandler implements TaskHandler {
     return posts;
   }
 
-  private async tryLikePost(postId: string, apiClient: any): Promise<boolean> {
+  private async tryLikePost(postId: string, apiClient: unknown): Promise<boolean> {
     try {
       // 尝试点赞帖子
       log.debug(`尝试点赞帖子: ${postId}`);
-      const response = await apiClient.toggleLike(postId, true);
+      const response = await (apiClient as { toggleLike: (postId: string, isLike: boolean) => Promise<{ ret: number; errmsg: string; data: { pack?: string } }> }).toggleLike(postId, true);
       
       log.debug(`点赞API响应: ret=${response.ret}, errmsg="${response.errmsg}"`);
       
@@ -304,10 +316,10 @@ export class LikePostHandler implements TaskHandler {
     }
   }
 
-  private async tryUnlikePost(postId: string, apiClient: any): Promise<boolean> {
+  private async tryUnlikePost(postId: string, apiClient: unknown): Promise<boolean> {
     try {
       log.debug(`尝试取消点赞帖子: ${postId}`);
-      const response = await apiClient.toggleLike(postId, false);
+      const response = await (apiClient as { toggleLike: (postId: string, isLike: boolean) => Promise<{ ret: number; errmsg: string; data: { pack?: string } }> }).toggleLike(postId, false);
       
       log.debug(`取消点赞API响应: ret=${response.ret}, errmsg="${response.errmsg}"`);
       

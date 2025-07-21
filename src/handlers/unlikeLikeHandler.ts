@@ -88,7 +88,7 @@ export class UnlikeLikeHandler implements TaskHandler {
             log.warn(`  ❌ 取消点赞失败`);
           }
           
-          await frequencyController.randomDelay();
+          await (frequencyController as { randomDelay: () => Promise<void> }).randomDelay();
           
         } catch (error) {
           log.error(`测试帖子 ${post.title} 时出错: ${error instanceof Error ? error.message : String(error)}`);
@@ -122,7 +122,7 @@ export class UnlikeLikeHandler implements TaskHandler {
             }
           }
           
-          await frequencyController.randomDelay();
+          await (frequencyController as { randomDelay: () => Promise<void> }).randomDelay();
           
         } catch (error) {
           log.error(`点赞帖子 ${post.title} 时出错: ${error instanceof Error ? error.message : String(error)}`);
@@ -148,13 +148,13 @@ export class UnlikeLikeHandler implements TaskHandler {
     }
   }
 
-  async getProgress(task: Task, apiClient?: any): Promise<number> {
+  async getProgress(task: Task, apiClient?: unknown): Promise<number> {
     if (!apiClient) {
       return task.progress;
     }
     
     try {
-      const response = await apiClient.getFuliStatus();
+      const response = await (apiClient as { getFuliStatus: () => Promise<{ ret: number; errmsg: string; data: { pack: string } }> }).getFuliStatus();
       
       if (response.ret !== 0) {
         log.debug(`获取福利状态失败: ${response.errmsg}，使用缓存进度`);
@@ -164,7 +164,7 @@ export class UnlikeLikeHandler implements TaskHandler {
       const data = JSON.parse(response.data.pack);
       const tasks = data.tasks || [];
       
-      const currentTask = tasks.find((t: any) => t.id === task.id);
+      const currentTask = tasks.find((t: { id: string }) => t.id === task.id);
       
       if (currentTask) {
         return currentTask.progress;
@@ -177,9 +177,13 @@ export class UnlikeLikeHandler implements TaskHandler {
     }
   }
 
-  private async getPosts(apiClient: any): Promise<any[]> {
+  private async getPosts(apiClient: unknown): Promise<Array<{
+    postId: string;
+    title: string;
+    liked: boolean;
+  }>> {
     log.debug('获取帖子列表...');
-    const response = await apiClient.getPosts();
+    const response = await (apiClient as { getPosts: () => Promise<{ ret: number; errmsg: string; data: { pack: string } }> }).getPosts();
     
     if (response.ret !== 0) {
       throw new Error(`获取帖子列表失败: ${response.errmsg}`);
@@ -189,12 +193,12 @@ export class UnlikeLikeHandler implements TaskHandler {
     return postsData.posts || [];
   }
 
-  private async tryToggleLike(postId: string, isLike: boolean, apiClient: any): Promise<boolean> {
+  private async tryToggleLike(postId: string, isLike: boolean, apiClient: unknown): Promise<boolean> {
     try {
       const action = isLike ? '点赞' : '取消点赞';
       log.debug(`尝试${action}帖子: ${postId}`);
       
-      const response = await apiClient.toggleLike(postId, isLike);
+      const response = await (apiClient as { toggleLike: (postId: string, isLike: boolean) => Promise<{ ret: number; errmsg: string; data: { pack?: string } }> }).toggleLike(postId, isLike);
       
       log.debug(`${action}API响应: ret=${response.ret}, errmsg="${response.errmsg}"`);
       

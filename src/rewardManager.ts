@@ -27,7 +27,7 @@ export class RewardManager {
       const response = await this.apiClient.claimSignReward(day);
       
       if (response.ret === 0) {
-        const awardData = JSON.parse(response.data.pack);
+        const awardData = JSON.parse((response.data as { pack: string }).pack);
         
         // 尝试获取包信息
         try {
@@ -60,7 +60,7 @@ export class RewardManager {
         throw new Error(`获取福利状态失败: ${fuliResponse.errmsg}`);
       }
 
-      const fuliData = JSON.parse(fuliResponse.data.pack);
+      const fuliData = JSON.parse((fuliResponse.data as { pack: string }).pack);
       const weekdays = fuliData.weekdays || [];
       
       let claimedCount = 0;
@@ -103,7 +103,7 @@ export class RewardManager {
       const response = await this.apiClient.claimTaskReward(taskId);
       
       if (response.ret === 0) {
-        const scoreData = JSON.parse(response.data.pack);
+        const scoreData = JSON.parse((response.data as { pack: string }).pack);
         log.success(`成功领取任务${taskId}奖励: 光之币${scoreData.scoreA}, 友谊水晶${scoreData.scoreB}`);
         log.subInfo(`当前总积分: 光之币${scoreData.scoreATotal}, 友谊水晶${scoreData.scoreBTotal}`);
         return true;
@@ -178,7 +178,7 @@ export class RewardManager {
         return;
       }
 
-      const fuliData = JSON.parse(fuliResponse.data.pack);
+      const fuliData = JSON.parse((fuliResponse.data as { pack: string }).pack);
       
       // 显示签到奖励状态
       log.info('📅 签到奖励状态:');
@@ -234,13 +234,13 @@ export class RewardManager {
         return [];
       }
 
-      const fuliData = JSON.parse(fuliResponse.data.pack);
+      const fuliData = JSON.parse((fuliResponse.data as { pack: string }).pack);
       const tasks = fuliData.tasks || [];
       
       // 找出已完成但未领取奖励的任务
       return tasks
-                  .filter((task: any) => task.status === TaskStatus.COMPLETED && !task.isGet)
-        .map((task: any) => ({
+                  .filter((task: { status: number; isGet?: boolean }) => task.status === TaskStatus.COMPLETED && !task.isGet)
+        .map((task: { id: string; scoreA: number; scoreB: number }) => ({
           taskId: task.id,
           scoreA: task.scoreA,
           scoreB: task.scoreB,

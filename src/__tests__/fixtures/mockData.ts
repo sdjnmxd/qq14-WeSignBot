@@ -348,7 +348,16 @@ export const mockUpdatedFuliStatusResponse: FuliStatusResponse = {
  * 测试数据构建器 - 方便在测试中创建特定场景的数据
  */
 export class MockDataBuilder {
-  static createTaskResponse(tasks: any[]) {
+  static createTaskResponse(tasks: Array<{
+    id: string;
+    type: string;
+    name?: string;
+    required: number;
+    progress: number;
+    status: number;
+    scoreA?: number;
+    scoreB?: number;
+  }>) {
     return {
       ret: 0,
       errmsg: '',
@@ -358,7 +367,11 @@ export class MockDataBuilder {
     };
   }
 
-  static createPostsResponse(posts: any[]) {
+  static createPostsResponse(posts: Array<{
+    postId: string;
+    title: string;
+    liked: boolean;
+  }>) {
     return {
       ret: 0,
       errmsg: '',
@@ -376,7 +389,7 @@ export class MockDataBuilder {
     };
   }
 
-  static createSuccessResponse(data: any = {}) {
+  static createSuccessResponse(data: Record<string, unknown> = {}) {
     return {
       ret: 0,
       errmsg: '',

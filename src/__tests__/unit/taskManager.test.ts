@@ -1,7 +1,7 @@
 import { TaskManager } from '../../taskManager';
 import { ApiClient } from '../../api';
 import { FrequencyController } from '../../frequencyController';
-import { RewardManager } from '../../rewardManager';
+
 import { TaskType, TaskStatus, Task } from '../../types';
 
 // Mock the RewardManager
@@ -28,13 +28,13 @@ describe('TaskManager', () => {
       toggleLike: jest.fn(),
       claimSignReward: jest.fn(),
       claimTaskReward: jest.fn()
-    } as any;
+    } as unknown as jest.Mocked<ApiClient>;
 
     mockFrequencyController = {
       randomDelay: jest.fn().mockResolvedValue(undefined),
       setDelayRange: jest.fn(),
       getDelayRange: jest.fn().mockReturnValue({ min: 1000, max: 3000 })
-    } as any;
+    } as unknown as jest.Mocked<FrequencyController>;
 
     taskManager = new TaskManager(mockApiClient, mockFrequencyController);
   });
@@ -540,21 +540,23 @@ describe('TaskManager', () => {
         }
       ];
 
-      // 使用反射访问私有方法
+      // 仅用于测试私有方法
       const optimizeMethod = (taskManager as any).optimizeTaskExecution.bind(taskManager);
       const result = optimizeMethod(tasks);
 
       expect(result.size).toBe(2); // VIEW_POST和LIKE_POST两个类型
       
       const viewPostTasks = result.get(TaskType.VIEW_POST);
-      expect(viewPostTasks).toHaveLength(3); // 排除已完成的任务
-      expect(viewPostTasks[0].name).toBe('查看10个帖子'); // 按required降序排序
-      expect(viewPostTasks[1].name).toBe('查看3个帖子');
-      expect(viewPostTasks[2].name).toBe('查看1个帖子');
+      expect(viewPostTasks).toBeDefined();
+      expect(viewPostTasks!).toHaveLength(3); // 排除已完成的任务
+      expect(viewPostTasks![0].name).toBe('查看10个帖子'); // 按required降序排序
+      expect(viewPostTasks![1].name).toBe('查看3个帖子');
+      expect(viewPostTasks![2].name).toBe('查看1个帖子');
       
       const likePostTasks = result.get(TaskType.LIKE_POST);
-      expect(likePostTasks).toHaveLength(1);
-      expect(likePostTasks[0].name).toBe('点赞2个帖子');
+      expect(likePostTasks).toBeDefined();
+      expect(likePostTasks!).toHaveLength(1);
+      expect(likePostTasks![0].name).toBe('点赞2个帖子');
     });
 
     it('应该正确计算任务完成情况', () => {
@@ -593,7 +595,7 @@ describe('TaskManager', () => {
 
       const maxTask = tasks[2]; // 查看10个帖子
 
-      // 使用反射访问私有方法
+      // 仅用于测试私有方法
       const calculateMethod = (taskManager as any).calculateTaskCompletion.bind(taskManager);
       const completedTasks = calculateMethod(tasks, maxTask);
 
@@ -640,6 +642,7 @@ describe('TaskManager', () => {
     });
 
     it('应该获取正确的任务类型友好名称', () => {
+      // 仅用于测试私有方法
       const getTaskTypeName = (taskManager as any).getTaskTypeName.bind(taskManager);
       
       expect(getTaskTypeName(TaskType.VIEW_POST)).toBe('查看帖子');

@@ -41,11 +41,11 @@ export class TaskManager {
       }
 
       // 检查data.pack是否存在
-      if (!scoresResponse.data || !scoresResponse.data.pack) {
+      if (!scoresResponse.data || !(scoresResponse.data as { pack?: string }).pack) {
         throw new Error(`积分数据格式错误: ${JSON.stringify(scoresResponse.data)}`);
       }
 
-      const scoresData = JSON.parse(scoresResponse.data.pack);
+      const scoresData = JSON.parse((scoresResponse.data as { pack: string }).pack);
       
       // 获取用户会话信息
       const sessionResponse = await this.apiClient.getSessionWithBindInfo();
@@ -60,10 +60,11 @@ export class TaskManager {
       log.subInfo(`当前积分: 光之币 ${scoresData.scoreA}, 友谊水晶 ${scoresData.scoreB}`);
       
       // 会话数据的处理稍后再做，先确保积分获取正常
-      if (sessionResponse.data && sessionResponse.data.bind_info) {
-        log.subInfo(`绑定大区: ${sessionResponse.data.bind_info.area_name}`);
-        if (sessionResponse.data.bind_info.role_name) {
-          log.subInfo(`角色名称: ${sessionResponse.data.bind_info.role_name}`);
+      if (sessionResponse.data && (sessionResponse.data as { bind_info?: { area_name: string; role_name?: string } }).bind_info) {
+        const bindInfo = (sessionResponse.data as { bind_info: { area_name: string; role_name?: string } }).bind_info;
+        log.subInfo(`绑定大区: ${bindInfo.area_name}`);
+        if (bindInfo.role_name) {
+          log.subInfo(`角色名称: ${bindInfo.role_name}`);
         }
       } else {
         log.warn('未绑定游戏大区');
@@ -86,7 +87,7 @@ export class TaskManager {
       throw new Error(`获取福利状态失败: ${response.errmsg}`);
     }
 
-    const data = JSON.parse(response.data.pack);
+          const data = JSON.parse((response.data as { pack: string }).pack);
     const tasks: Task[] = data.tasks || [];
 
     log.debug(`原始任务数量: ${tasks.length}`);
@@ -125,7 +126,7 @@ export class TaskManager {
     });
     
     // 对每组任务按required数量降序排序（先执行最大的任务）
-    taskGroups.forEach((taskList, taskType) => {
+    taskGroups.forEach((taskList) => {
       taskList.sort((a, b) => b.required - a.required);
     });
     

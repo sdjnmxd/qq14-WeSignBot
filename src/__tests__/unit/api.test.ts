@@ -1,14 +1,20 @@
 import axios from 'axios';
 import { ApiClient } from '../../api';
-import { mockFuliStatusResponse, mockPostsResponse, MockDataBuilder } from '../fixtures/mockData';
-import { suppressConsole, restoreConsole } from '../setup/testSetup';
+import { mockFuliStatusResponse, MockDataBuilder } from '../fixtures/mockData';
+
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('ApiClient', () => {
   let apiClient: ApiClient;
-  let mockAxiosInstance: any;
+  let mockAxiosInstance: jest.Mocked<{
+    post: jest.Mock;
+    interceptors: {
+      request: { use: jest.Mock };
+      response: { use: jest.Mock };
+    };
+  }>;
 
   beforeEach(() => {
     mockAxiosInstance = {
@@ -23,7 +29,7 @@ describe('ApiClient', () => {
       }
     };
 
-    mockedAxios.create.mockReturnValue(mockAxiosInstance);
+    mockedAxios.create.mockReturnValue(mockAxiosInstance as unknown as any);
 
     const config = {
       cookie: 'test-cookie'
@@ -323,7 +329,7 @@ describe('ApiClient', () => {
       mockAxiosInstance.post.mockResolvedValue({ data: mockResponse });
 
       const result = await apiClient.getFuliStatus();
-      expect(result.data.pack).toBe('');
+      expect((result.data as { pack: string }).pack).toBe('');
     });
 
     it('应该处理无效JSON格式', async () => {
@@ -338,7 +344,7 @@ describe('ApiClient', () => {
       mockAxiosInstance.post.mockResolvedValue({ data: mockResponse });
 
       const result = await apiClient.getFuliStatus();
-      expect(result.data.pack).toBe('invalid json');
+      expect((result.data as { pack: string }).pack).toBe('invalid json');
     });
 
     it('应该处理大数据量帖子列表', async () => {
@@ -364,7 +370,7 @@ describe('ApiClient', () => {
       const result = await apiClient.getPosts();
       expect(result.ret).toBe(0);
       
-      const packData = JSON.parse(result.data.pack);
+      const packData = JSON.parse((result.data as { pack: string }).pack);
       expect(packData.posts).toHaveLength(1000);
     });
   });

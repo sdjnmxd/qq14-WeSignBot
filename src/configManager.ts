@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { AccountConfig, MultiAccountConfig, ScheduleConfig } from './types';
+import { MultiAccountConfig, AccountConfig, ScheduleConfig } from './types';
 import { log } from './utils/logger';
 
 export class ConfigManager {
@@ -56,7 +56,7 @@ export class ConfigManager {
   /**
    * 验证配置格式
    */
-  private validateConfig(config: any): void {
+  private validateConfig(config: MultiAccountConfig): void {
     if (!config || typeof config !== 'object') {
       throw new Error('配置文件格式错误');
     }
@@ -77,7 +77,7 @@ export class ConfigManager {
   /**
    * 验证账号配置
    */
-  private validateAccountConfig(account: any, globalSchedule?: any): void {
+  private validateAccountConfig(account: AccountConfig, globalSchedule?: ScheduleConfig): void {
     if (!account.id || typeof account.id !== 'string') {
       throw new Error('账号ID不能为空且必须是字符串');
     }
@@ -102,7 +102,7 @@ export class ConfigManager {
   /**
    * 验证执行计划配置
    */
-  private validateScheduleConfig(schedule: any): void {
+  private validateScheduleConfig(schedule: ScheduleConfig): void {
     if (!schedule.times || !Array.isArray(schedule.times)) {
       throw new Error('times字段必须是数组');
     }

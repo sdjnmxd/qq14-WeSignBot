@@ -1,11 +1,11 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import { log } from './utils/logger';
 
 export interface ApiConfig {
   cookie: string;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   ret: number;
   errmsg: string;
   data: T;
@@ -77,7 +77,11 @@ export class ApiClient {
    * 获取帖子列表
    */
   async getPosts(lastId?: string): Promise<ApiResponse> {
-    const requestData: any = {
+    const requestData: {
+      forumId: string;
+      listType: number;
+      lastId?: string;
+    } = {
       forumId: '8',
       listType: 1
     };

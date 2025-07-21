@@ -10,7 +10,7 @@ describe('RewardManager', () => {
       getFuliStatus: jest.fn(),
       claimSignReward: jest.fn(),
       claimTaskReward: jest.fn()
-    } as any;
+    } as unknown as jest.Mocked<ApiClient>;
 
     rewardManager = new RewardManager(mockApiClient);
   });

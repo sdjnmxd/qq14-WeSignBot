@@ -4,8 +4,14 @@ import { TaskType, Task, TaskContext } from '../../types';
 describe('UnlikeLikeHandler', () => {
   let handler: UnlikeLikeHandler;
   let mockContext: TaskContext;
-  let mockApiClient: any;
-  let mockFrequencyController: any;
+  let mockApiClient: jest.Mocked<{
+    getPosts: jest.Mock;
+    toggleLike: jest.Mock;
+    getFuliStatus: jest.Mock;
+  }>;
+  let mockFrequencyController: jest.Mocked<{
+    randomDelay: jest.Mock;
+  }>;
 
   beforeEach(() => {
     handler = new UnlikeLikeHandler();

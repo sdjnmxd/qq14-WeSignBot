@@ -94,7 +94,7 @@ export class AccountExecutor {
     let crystals = 0;
     
     if (fuliResponse.ret === 0) {
-      const scoresData = JSON.parse(fuliResponse.data.pack);
+      const scoresData = JSON.parse((fuliResponse.data as { pack: string }).pack);
       coins = scoresData.scoreA || 0;
       crystals = scoresData.scoreB || 0;
     }
@@ -117,13 +117,13 @@ export class AccountExecutor {
       const fuliResponse = await rewardManager['apiClient'].getFuliStatus();
       if (fuliResponse.ret !== 0) return 0;
       
-      const fuliData = JSON.parse(fuliResponse.data.pack);
+      const fuliData = JSON.parse((fuliResponse.data as { pack: string }).pack);
       // 签到奖励：status=1表示可领取
-      const signRewards = (fuliData.weekdays || []).filter((w: any) => w.status === 1).length;
+      const signRewards = (fuliData.weekdays || []).filter((w: { status: number }) => w.status === 1).length;
       
       const tasks = fuliData.tasks || [];
       // 任务奖励：只有已完成未领奖(status=1)的任务才算可领取
-      const taskRewards = tasks.filter((t: any) => t.status === 1).length;
+      const taskRewards = tasks.filter((t: { status: number }) => t.status === 1).length;
       
       return signRewards + taskRewards;
     } catch {
@@ -134,7 +134,13 @@ export class AccountExecutor {
   /**
    * 显示账号统计信息
    */
-  private displayAccountStats(title: string, stats: any, accountName: string) {
+  private displayAccountStats(title: string, stats: {
+    completedTasks: number;
+    totalTasks: number;
+    coins: number;
+    crystals: number;
+    availableRewards: number;
+  }, accountName: string) {
     log.info(`📊 ${accountName} - ${title}:`);
     log.subInfo(`任务: ${stats.completedTasks}/${stats.totalTasks} 已完成`);
     log.subInfo(`积分: 光之币 ${stats.coins}, 友谊水晶 ${stats.crystals}`);
@@ -146,7 +152,17 @@ export class AccountExecutor {
   /**
    * 显示执行摘要
    */
-  private displayExecutionSummary(initial: any, final: any, accountName: string) {
+  private displayExecutionSummary(initial: {
+    completedTasks: number;
+    coins: number;
+    crystals: number;
+    availableRewards: number;
+  }, final: {
+    completedTasks: number;
+    coins: number;
+    crystals: number;
+    availableRewards: number;
+  }, accountName: string) {
     log.info(`📋 ${accountName} - 执行摘要:`);
     
     const tasksDone = final.completedTasks - initial.completedTasks;

@@ -39,7 +39,7 @@ export class ViewPostHandler implements TaskHandler {
       log.progress(i + 1, postsToView, post.title);
       
       await this.viewPost(post.postId, apiClient);
-      await frequencyController.randomDelay();
+      await (frequencyController as { randomDelay: () => Promise<void> }).randomDelay();
     }
     
     log.success(`查看帖子任务完成`);
@@ -47,7 +47,7 @@ export class ViewPostHandler implements TaskHandler {
     // 操作完成后等待一下，然后验证最终进度
     if (postsToView > 0) {
       log.debug('等待服务器更新任务进度...');
-      await frequencyController.randomDelay();
+      await (frequencyController as { randomDelay: () => Promise<void> }).randomDelay();
       
       const finalProgress = await this.getProgress(task, apiClient);
       log.debug(`任务最终进度: ${finalProgress}/${task.required}`);
@@ -62,7 +62,7 @@ export class ViewPostHandler implements TaskHandler {
     }
   }
 
-  async getProgress(task: Task, apiClient?: any): Promise<number> {
+  async getProgress(task: Task, apiClient?: unknown): Promise<number> {
     if (!apiClient) {
       // 如果没有apiClient，返回任务中的progress字段
       return task.progress;
@@ -70,7 +70,7 @@ export class ViewPostHandler implements TaskHandler {
     
     try {
       // 通过API获取最新的任务状态
-      const response = await apiClient.getFuliStatus();
+      const response = await (apiClient as { getFuliStatus: () => Promise<{ ret: number; errmsg: string; data: { pack: string } }> }).getFuliStatus();
       
       if (response.ret !== 0) {
         log.debug(`获取福利状态失败: ${response.errmsg}，使用缓存进度`);
@@ -81,7 +81,7 @@ export class ViewPostHandler implements TaskHandler {
       const tasks = data.tasks || [];
       
       // 查找对应的任务
-      const currentTask = tasks.find((t: any) => t.id === task.id);
+      const currentTask = tasks.find((t: { id: string }) => t.id === task.id);
       
       if (currentTask) {
         log.debug(`获取到实时进度: ${currentTask.progress}/${currentTask.required}`);
@@ -96,10 +96,18 @@ export class ViewPostHandler implements TaskHandler {
     }
   }
 
-  private async getAllAvailablePosts(apiClient: any, needCount: number): Promise<any[]> {
+  private async getAllAvailablePosts(apiClient: unknown, needCount: number): Promise<Array<{
+    postId: string;
+    title: string;
+    liked: boolean;
+  }>> {
     log.debug(`获取帖子列表，需要 ${needCount} 个帖子...`);
     
-    let allPosts: any[] = [];
+    let allPosts: Array<{
+      postId: string;
+      title: string;
+      liked: boolean;
+    }> = [];
     let lastId: string | undefined = undefined;
     let pageNum = 1;
     const maxPages = 5; // 查看帖子通常不需要太多页面
@@ -107,7 +115,7 @@ export class ViewPostHandler implements TaskHandler {
     while (pageNum <= maxPages && allPosts.length < needCount) {
       log.debug(`获取第 ${pageNum} 页帖子${lastId ? ` (lastId: ${lastId})` : ''}...`);
       
-      const response = await apiClient.getPosts(lastId);
+      const response = await (apiClient as { getPosts: (lastId?: string) => Promise<{ ret: number; errmsg: string; data: { pack: string } }> }).getPosts(lastId);
       
       if (response.ret !== 0) {
         log.warn(`获取第 ${pageNum} 页帖子失败: ${response.errmsg}`);
@@ -149,10 +157,14 @@ export class ViewPostHandler implements TaskHandler {
     return allPosts;
   }
 
-  private async getPosts(apiClient: any): Promise<any[]> {
+  private async getPosts(apiClient: unknown): Promise<Array<{
+    postId: string;
+    title: string;
+    liked: boolean;
+  }>> {
     // 保持向后兼容，但现在推荐使用 getAllAvailablePosts
     log.debug('获取帖子列表...');
-    const response = await apiClient.getPosts();
+    const response = await (apiClient as { getPosts: () => Promise<{ ret: number; errmsg: string; data: { pack: string } }> }).getPosts();
     
     if (response.ret !== 0) {
       throw new Error(`获取帖子列表失败: ${response.errmsg}`);
@@ -163,10 +175,10 @@ export class ViewPostHandler implements TaskHandler {
     return postsData.posts || [];
   }
 
-  private async viewPost(postId: string, apiClient: any): Promise<void> {
+  private async viewPost(postId: string, apiClient: unknown): Promise<void> {
     log.debug(`查看帖子: ${postId}`);
     
-    const response = await apiClient.viewPost(postId);
+    const response = await (apiClient as { viewPost: (postId: string) => Promise<{ ret: number; errmsg: string; data: { pack?: string } }> }).viewPost(postId);
     
     if (response.ret !== 0) {
       throw new Error(`查看帖子失败: ${response.errmsg}`);

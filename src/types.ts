@@ -41,13 +41,13 @@ export function getTaskStatusDescription(status: TaskStatus): string {
 export interface TaskHandler {
   canHandle(taskType: TaskType): boolean;
   execute(task: Task, context: TaskContext): Promise<void>;
-  getProgress(task: Task, apiClient?: any): Promise<number>;
+  getProgress(task: Task, apiClient?: unknown): Promise<number>;
 }
 
 // 任务上下文
 export interface TaskContext {
-  apiClient: any; // ApiClient实例
-  frequencyController: any; // FrequencyController实例
+  apiClient: unknown; // ApiClient实例
+  frequencyController: unknown; // FrequencyController实例
 }
 
 // 奖励接口
@@ -94,6 +94,15 @@ export interface FuliStatusData {
   tasks: Task[];
 }
 
+export interface Media {
+  mediaId: string;
+  mediaType: number;
+  url: string;
+  cover?: string;
+  platform?: string;
+  vid?: string;
+}
+
 export interface Post {
   postId: string;
   userId: string;
@@ -105,7 +114,7 @@ export interface Post {
   commentCount: string;
   likeCount: string;
   viewCount: string;
-  medias: any[];
+  medias: Media[];
   liked: boolean;
   tagIds: string[];
   status: number;
@@ -126,15 +135,60 @@ export interface PostsResponse {
   };
 }
 
+export interface Forum {
+  forumId: string;
+  title: string;
+  authFlag: number;
+  sections: Array<{
+    sectionId: string;
+    title: string;
+  }>;
+}
+
+export interface User {
+  userId: string;
+  gender: number;
+  authType: number;
+  nickname: string;
+  avatar: string;
+  region: string;
+  hasMobile: boolean;
+  followed: boolean;
+  titleIds: string[];
+  status: number;
+}
+
+export interface Topic {
+  topicId: string;
+  title: string;
+  authFlag: number;
+  priority: number;
+  background: string;
+  logo: string;
+  startAt: string;
+  finishAt: string;
+  status: number;
+  onlyOfficial: boolean;
+  postCount: string;
+  intro: string;
+  showDesignerReplied: boolean;
+}
+
+export interface Tag {
+  tagId: string;
+  name: string;
+  color: string;
+}
+
 export interface PostsData {
   limit: number;
   posts: Post[];
-  forums: any[];
-  users: any[];
-  topics: any[];
+  forums: Forum[];
+  users: User[];
+  topics: Topic[];
   total: string;
   lastId: string;
-  tags: any[];
+  tags: Tag[];
   reqId: string;
 }
 

@@ -4,8 +4,14 @@ import { TaskType, Task, TaskContext } from '../../types';
 describe('ViewPostHandler', () => {
   let handler: ViewPostHandler;
   let mockContext: TaskContext;
-  let mockApiClient: any;
-  let mockFrequencyController: any;
+  let mockApiClient: jest.Mocked<{
+    getPosts: jest.Mock;
+    getFuliStatus: jest.Mock;
+    viewPost: jest.Mock;
+  }>;
+  let mockFrequencyController: jest.Mocked<{
+    randomDelay: jest.Mock;
+  }>;
 
   beforeEach(() => {
     handler = new ViewPostHandler();
@@ -454,7 +460,7 @@ describe('ViewPostHandler', () => {
 
       // Mock 多页获取，第二页返回空数组
       let callCount = 0;
-      mockApiClient.getPosts.mockImplementation((lastId?: string) => {
+      mockApiClient.getPosts.mockImplementation(() => {
         callCount++;
         if (callCount === 1) {
           return Promise.resolve({

@@ -32,7 +32,7 @@ export class Logger {
   /**
    * 调试信息 - 只在开发模式显示
    */
-  debug(message: string, ...args: any[]): void {
+  debug(message: string, ...args: unknown[]): void {
     if (this.currentLevel <= LogLevel.DEBUG && this.isDebugMode) {
       console.log(`🔍 [DEBUG] ${message}`, ...args);
     }
@@ -41,7 +41,7 @@ export class Logger {
   /**
    * 一般信息 - 正常运行时显示
    */
-  info(message: string, ...args: any[]): void {
+  info(message: string, ...args: unknown[]): void {
     if (this.currentLevel <= LogLevel.INFO) {
       console.log(`ℹ️  ${message}`, ...args);
     }
@@ -50,7 +50,7 @@ export class Logger {
   /**
    * 成功信息 - 重要操作成功时显示
    */
-  success(message: string, ...args: any[]): void {
+  success(message: string, ...args: unknown[]): void {
     if (this.currentLevel <= LogLevel.SUCCESS) {
       console.log(`✅ ${message}`, ...args);
     }
@@ -59,7 +59,7 @@ export class Logger {
   /**
    * 警告信息
    */
-  warn(message: string, ...args: any[]): void {
+  warn(message: string, ...args: unknown[]): void {
     if (this.currentLevel <= LogLevel.WARN) {
       console.log(`⚠️  ${message}`, ...args);
     }
@@ -68,7 +68,7 @@ export class Logger {
   /**
    * 错误信息
    */
-  error(message: string, ...args: any[]): void {
+  error(message: string, ...args: unknown[]): void {
     console.log(`❌ ${message}`, ...args);
   }
 
@@ -115,7 +115,7 @@ export class Logger {
   /**
    * 子任务信息 - 带缩进的信息
    */
-  subInfo(message: string, ...args: any[]): void {
+  subInfo(message: string, ...args: unknown[]): void {
     this.info(`  ${message}`, ...args);
   }
 
@@ -146,17 +146,17 @@ export const logger = Logger.getInstance();
 
 // 导出便捷方法
 export const log = {
-  debug: (message: string, ...args: any[]) => logger.debug(message, ...args),
-  info: (message: string, ...args: any[]) => logger.info(message, ...args),
-  success: (message: string, ...args: any[]) => logger.success(message, ...args),
-  warn: (message: string, ...args: any[]) => logger.warn(message, ...args),
-  error: (message: string, ...args: any[]) => logger.error(message, ...args),
+  debug: (message: string, ...args: unknown[]) => logger.debug(message, ...args),
+  info: (message: string, ...args: unknown[]) => logger.info(message, ...args),
+  success: (message: string, ...args: unknown[]) => logger.success(message, ...args),
+  warn: (message: string, ...args: unknown[]) => logger.warn(message, ...args),
+  error: (message: string, ...args: unknown[]) => logger.error(message, ...args),
   taskStart: (taskName: string) => logger.taskStart(taskName),
   taskComplete: (taskName: string) => logger.taskComplete(taskName),
   taskSkip: (taskName: string, reason: string) => logger.taskSkip(taskName, reason),
   progress: (current: number, total: number, item?: string) => logger.progress(current, total, item),
   separator: (title?: string) => logger.separator(title),
-  subInfo: (message: string, ...args: any[]) => logger.subInfo(message, ...args),
+  subInfo: (message: string, ...args: unknown[]) => logger.subInfo(message, ...args),
   apiRequest: (url: string, method: string) => logger.apiRequest(url, method),
   apiResponse: (status: number, url: string) => logger.apiResponse(status, url),
   apiError: (url: string, error: string) => logger.apiError(url, error)

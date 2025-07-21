@@ -1,11 +1,17 @@
 import { LikePostHandler } from '../../handlers/likePostHandler';
-import { TaskType, Task, TaskContext } from '../../types';
+import { TaskType, Task } from '../../types';
 
 describe('LikePostHandler', () => {
   let handler: LikePostHandler;
-  let mockContext: TaskContext;
-  let mockApiClient: any;
-  let mockFrequencyController: any;
+
+  let mockApiClient: jest.Mocked<{
+    getPosts: jest.Mock;
+    toggleLike: jest.Mock;
+    getFuliStatus: jest.Mock;
+  }>;
+  let mockFrequencyController: jest.Mocked<{
+    randomDelay: jest.Mock;
+  }>;
 
   beforeEach(() => {
     handler = new LikePostHandler();
@@ -20,10 +26,7 @@ describe('LikePostHandler', () => {
       randomDelay: jest.fn().mockResolvedValue(undefined)
     };
     
-    mockContext = {
-      apiClient: mockApiClient,
-      frequencyController: mockFrequencyController
-    };
+
   });
 
   describe('canHandle', () => {
@@ -429,7 +432,7 @@ describe('LikePostHandler', () => {
 
       // Mock 分页获取帖子
       let callCount = 0;
-      mockApiClient.getPosts.mockImplementation((lastId?: string) => {
+      mockApiClient.getPosts.mockImplementation(() => {
         callCount++;
         
         if (callCount === 1) {
