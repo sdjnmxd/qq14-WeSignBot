@@ -46,7 +46,7 @@ jobs:
       run: npm ci
       
     - name: Run linting (业务代码)
-      run: npx eslint src --ext .ts --max-warnings 0 --ignore-pattern src/__tests__/**
+      run: npx eslint src --ext .ts --max-warnings 0
 
     - name: Run linting (测试代码，允许 warning)
       run: npx eslint src/__tests__ --ext .ts || true
