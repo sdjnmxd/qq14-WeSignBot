@@ -1,6 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
 import { log } from './utils/logger';
-import { ConfigManager } from './configManager';
 import dotenv from 'dotenv';
 dotenv.config();
 

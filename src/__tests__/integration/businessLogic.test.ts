@@ -2,7 +2,7 @@ import { TaskManager } from '../../taskManager';
 
 import { ApiClient } from '../../api';
 import { FrequencyController } from '../../frequencyController';
-import { TaskType, TaskStatus, Task, TaskHandler } from '../../types';
+import { TaskType, TaskStatus, Task } from '../../types';
 
 // Mock dependencies
 jest.mock('../../rewardManager', () => ({
