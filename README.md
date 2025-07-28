@@ -1,7 +1,7 @@
 # QQ14微信小程序签到脚本
 
 [![CI](https://github.com/sdjnmxd/qq14-WeSignBot/actions/workflows/ci.yml/badge.svg)](https://github.com/sdjnmxd/qq14-WeSignBot/actions/workflows/ci.yml)
-[![Release](https://github.com/sdjnmxd/qq14-WeSignBot/actions/workflows/release.yml/badge.svg)](https://github.com/sdjnmxd/qq14-WeSignBot/actions/workflows/release.yml)
+[![Release](https://github.com/sdjnmxd/qq14-WeSignBot/actions/workflows/release.yml/badge.svg?event=release)](https://github.com/sdjnmxd/qq14-WeSignBot/actions/workflows/release.yml)
 [![Docker Image](https://img.shields.io/docker/pulls/sdjnmxd/qq14-wesignbot)](https://hub.docker.com/r/sdjnmxd/qq14-wesignbot)
 [![Test Coverage](https://codecov.io/gh/sdjnmxd/qq14-WeSignBot/branch/main/graph/badge.svg)](https://codecov.io/gh/sdjnmxd/qq14-WeSignBot)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
