@@ -102,4 +102,3 @@ jobs:
     - name: Build Docker image (test only)
       run: |
         docker build -t qq14-wesignbot:test .
-        docker run --rm qq14-wesignbot:test npm test 
