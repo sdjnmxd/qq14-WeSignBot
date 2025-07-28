@@ -23,6 +23,7 @@ export class ApiClient {
     this.config = config;
     const ua = config.configManager.getGlobalUA();
     const referer = config.configManager.getGlobalReferer();
+    
     this.client = axios.create({
       baseURL: 'https://minigame.guangzi.qq.com/starweb',
       timeout: 10000,

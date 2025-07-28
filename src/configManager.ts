@@ -29,16 +29,16 @@ export class ConfigManager {
         log.info(`成功加载配置文件: ${this.configPath}`);
         return config;
       } else {
-        // 创建默认配置
-        const defaultConfig = this.createDefaultConfig();
-        this.saveConfig(defaultConfig);
-        log.info(`创建默认配置文件: ${this.configPath}`);
-        return defaultConfig;
+        log.error('❌ 配置文件不存在');
+        log.info('💡 请创建配置文件 accounts.json');
+        log.info('📝 配置文件格式请参考: accounts.example.json');
+        process.exit(1);
       }
     } catch (error) {
-      log.error('加载配置文件失败:', error instanceof Error ? error.message : String(error));
-      log.info('使用默认配置');
-      return this.createDefaultConfig();
+      log.error('❌ 配置文件格式错误:', error instanceof Error ? error.message : String(error));
+      log.info('💡 请检查配置文件格式是否正确');
+      log.info('📝 配置文件格式请参考: accounts.example.json');
+      process.exit(1);
     }
   }
 
@@ -242,28 +242,50 @@ export class ConfigManager {
    * 获取全局 UA，优先级：env > accounts.json > 默认
    */
   getGlobalUA(): string {
-    return process.env.WECHAT_UA || this.config.globalUA || '';
+    const ua = process.env.WECHAT_UA || this.config.globalUA || '';
+    if (!ua) {
+      log.warn('⚠️  User-Agent未配置，使用默认值');
+      log.info('💡 可在 accounts.json 中设置 globalUA，或使用环境变量 WECHAT_UA');
+      return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF WindowsWechat(0x63090c33)XWEB/14185';
+    }
+    return ua;
   }
 
   /**
    * 获取全局 Referer，优先级：env > accounts.json > 默认
    */
   getGlobalReferer(): string {
-    return process.env.WECHAT_REFERER || this.config.globalReferer || '';
+    const referer = process.env.WECHAT_REFERER || this.config.globalReferer || '';
+    if (!referer) {
+      log.warn('⚠️  Referer未配置，使用默认值');
+      log.info('💡 可在 accounts.json 中设置 globalReferer，或使用环境变量 WECHAT_REFERER');
+      return 'https://servicewechat.com/wx9d135ab589f8beb9/21/page-frame.html';
+    }
+    return referer;
   }
 
   /**
    * 获取全局最小延迟，优先级：env > accounts.json > 默认
    */
   getMinDelay(): number {
-    return Number(process.env.MIN_DELAY_MS) || this.config.globalMinDelay || 1000;
+    const minDelay = Number(process.env.MIN_DELAY_MS) || this.config.globalMinDelay || 1000;
+    if (this.config.globalMinDelay === undefined && !process.env.MIN_DELAY_MS) {
+      log.warn('⚠️  最小延迟未配置，使用默认值: 1000ms');
+      log.info('💡 可在 accounts.json 中设置 globalMinDelay，或使用环境变量 MIN_DELAY_MS');
+    }
+    return minDelay;
   }
 
   /**
    * 获取全局最大延迟，优先级：env > accounts.json > 默认
    */
   getMaxDelay(): number {
-    return Number(process.env.MAX_DELAY_MS) || this.config.globalMaxDelay || 3000;
+    const maxDelay = Number(process.env.MAX_DELAY_MS) || this.config.globalMaxDelay || 3000;
+    if (this.config.globalMaxDelay === undefined && !process.env.MAX_DELAY_MS) {
+      log.warn('⚠️  最大延迟未配置，使用默认值: 3000ms');
+      log.info('💡 可在 accounts.json 中设置 globalMaxDelay，或使用环境变量 MAX_DELAY_MS');
+    }
+    return maxDelay;
   }
 
   /**

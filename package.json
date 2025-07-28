@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "QQ14微信小程序签到脚本",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
   "author": "sdjnmxd",
   "license": "MIT",
   "repository": {
@@ -44,7 +48,7 @@
   },
   "devDependencies": {
     "@types/jest": "^29.0.0",
-    "@types/node": "^20.0.0",
+    "@types/node": "^22.0.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.0.0",

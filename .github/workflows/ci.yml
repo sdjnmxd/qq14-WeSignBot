@@ -10,25 +10,21 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup Node.js ${{ matrix.node-version }}
+    - name: Setup Node.js LTS
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: 'lts/*'
         cache: 'npm'
         
     - name: Cache Jest
       uses: actions/cache@v3
       with:
         path: ~/.cache/jest
-        key: ${{ runner.os }}-jest-${{ hashFiles('**/package-lock.json') }}-${{ matrix.node-version }}
+        key: ${{ runner.os }}-jest-${{ hashFiles('**/package-lock.json') }}
         restore-keys: |
           ${{ runner.os }}-jest-${{ hashFiles('**/package-lock.json') }}-
           ${{ runner.os }}-jest-
@@ -37,7 +33,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: ~/.cache/typescript
-        key: ${{ runner.os }}-tsc-${{ hashFiles('**/tsconfig.json') }}-${{ matrix.node-version }}
+        key: ${{ runner.os }}-tsc-${{ hashFiles('**/tsconfig.json') }}
         restore-keys: |
           ${{ runner.os }}-tsc-${{ hashFiles('**/tsconfig.json') }}-
           ${{ runner.os }}-tsc-
@@ -75,7 +71,7 @@ jobs:
       if: always()
       run: |
         echo "=== Test Summary ==="
-        echo "Node.js version: ${{ matrix.node-version }}"
+        echo "Node.js version: $(node --version)"
         echo "Test coverage: $(cat coverage/coverage-summary.json | jq -r '.total.lines.pct')%"
         echo "Build status: ${{ job.status }}"
         
@@ -83,7 +79,7 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-${{ matrix.node-version }}
+        name: test-results
         path: |
           coverage/
           .jest/
