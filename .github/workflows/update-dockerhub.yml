@@ -1,0 +1,47 @@
+name: Update Docker Hub Description
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - README.md
+  workflow_dispatch:
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check if README.md changed
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "should_update=true" >> $GITHUB_OUTPUT
+            echo "Manual trigger, will update description"
+          else
+            # 检查 README.md 是否有实际变化
+            if git diff --quiet HEAD^ HEAD README.md; then
+              echo "should_update=false" >> $GITHUB_OUTPUT
+              echo "No changes in README.md, skipping update"
+            else
+              echo "should_update=true" >> $GITHUB_OUTPUT
+              echo "README.md changed, will update description"
+            fi
+          fi
+
+      - name: Update Docker Hub Description
+        if: steps.check.outputs.should_update == 'true'
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/qq14-wesignbot
+          readme-filepath: ./README.md
+          short-description: "QQ14微信小程序自动签到脚本 - 支持多账号和定时执行"
+          enable-url-completion: true 
