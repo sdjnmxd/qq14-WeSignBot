@@ -27,7 +27,7 @@ export class AccountExecutor {
 
       // 创建API客户端
       const apiClient = new ApiClient({ cookie: account.cookie, configManager: this.configManager });
-      const frequencyController = new FrequencyController(this.configManager);
+      const frequencyController = new FrequencyController(this.configManager.getMinDelay(), this.configManager.getMaxDelay());
 
       // 创建任务管理器
       const taskManager = new TaskManager(apiClient, frequencyController);
@@ -169,6 +169,34 @@ export class AccountExecutor {
   }
 
   /**
+   * 计算执行摘要
+   */
+  private calculateExecutionSummary(initial: {
+    completedTasks: number;
+    coins: number;
+    crystals: number;
+    availableRewards: number;
+  }, final: {
+    completedTasks: number;
+    coins: number;
+    crystals: number;
+    availableRewards: number;
+  }) {
+    const tasksDone = final.completedTasks - initial.completedTasks;
+    const coinsGained = final.coins - initial.coins;
+    const crystalsGained = final.crystals - initial.crystals;
+    const rewardsGained = initial.availableRewards - final.availableRewards;
+    
+    return {
+      tasksDone,
+      coinsGained,
+      crystalsGained,
+      rewardsGained,
+      hasProgress: tasksDone > 0 || rewardsGained > 0 || coinsGained > 0 || crystalsGained > 0
+    };
+  }
+
+  /**
    * 显示执行摘要
    */
   private displayExecutionSummary(initial: {
@@ -184,24 +212,21 @@ export class AccountExecutor {
   }, accountName: string) {
     log.info(`📋 ${accountName} - 执行摘要:`);
     
-    const tasksDone = final.completedTasks - initial.completedTasks;
-    const coinsGained = final.coins - initial.coins;
-    const crystalsGained = final.crystals - initial.crystals;
-    const rewardsGained = initial.availableRewards - final.availableRewards;
+    const summary = this.calculateExecutionSummary(initial, final);
     
-    if (tasksDone > 0) {
-      log.subInfo(`✅ 完成任务: ${tasksDone} 个`);
+    if (summary.tasksDone > 0) {
+      log.subInfo(`✅ 完成任务: ${summary.tasksDone} 个`);
     }
     
-    if (rewardsGained > 0) {
-      log.subInfo(`🎁 领取奖励: ${rewardsGained} 个`);
+    if (summary.rewardsGained > 0) {
+      log.subInfo(`🎁 领取奖励: ${summary.rewardsGained} 个`);
     }
     
-    if (coinsGained > 0 || crystalsGained > 0) {
-      log.subInfo(`💰 获得奖励: +${coinsGained} 光之币, +${crystalsGained} 友谊水晶`);
+    if (summary.coinsGained > 0 || summary.crystalsGained > 0) {
+      log.subInfo(`💰 获得奖励: +${summary.coinsGained} 光之币, +${summary.crystalsGained} 友谊水晶`);
     }
     
-    if (tasksDone === 0 && rewardsGained === 0) {
+    if (!summary.hasProgress) {
       log.subInfo(`ℹ️ 没有新的任务或奖励可完成/领取`);
     }
   }

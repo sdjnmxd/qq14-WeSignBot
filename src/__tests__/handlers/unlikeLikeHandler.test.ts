@@ -27,10 +27,7 @@ describe('UnlikeLikeHandler', () => {
       getFuliStatus: jest.fn()
     };
     
-    mockFrequencyController = new FrequencyController({
-      getMinDelay: () => 0,
-      getMaxDelay: () => 0
-    });
+    mockFrequencyController = new FrequencyController(0, 0);
     jest.spyOn(mockFrequencyController, 'randomDelay').mockResolvedValue(undefined);
     
     mockContext = {

@@ -12,9 +12,10 @@ export class TaskManager {
 
   constructor(
     private apiClient: ApiClient,
-    private frequencyController: FrequencyController
+    private frequencyController: FrequencyController,
+    rewardManager?: RewardManager // 允许注入RewardManager
   ) {
-    this.rewardManager = new RewardManager(apiClient);
+    this.rewardManager = rewardManager || new RewardManager(apiClient);
     this.initializeHandlers();
   }
 
@@ -87,7 +88,7 @@ export class TaskManager {
       throw new Error(`获取福利状态失败: ${response.errmsg}`);
     }
 
-          const data = JSON.parse((response.data as { pack: string }).pack);
+    const data = JSON.parse((response.data as { pack: string }).pack);
     const tasks: Task[] = data.tasks || [];
 
     log.debug(`原始任务数量: ${tasks.length}`);
@@ -110,9 +111,9 @@ export class TaskManager {
   }
 
   /**
-   * 按类型分组并优化任务执行顺序
+   * 按类型分组并优化任务执行顺序 - 提取为公共方法便于测试
    */
-  private optimizeTaskExecution(tasks: Task[]): Map<TaskType, Task[]> {
+  public optimizeTaskExecution(tasks: Task[]): Map<TaskType, Task[]> {
     const taskGroups = new Map<TaskType, Task[]>();
     
     // 按任务类型分组
@@ -134,9 +135,9 @@ export class TaskManager {
   }
 
   /**
-   * 计算执行最大任务后，其他任务的预期完成情况
+   * 计算执行最大任务后，其他任务的预期完成情况 - 提取为公共方法便于测试
    */
-  private calculateTaskCompletion(tasks: Task[], maxTask: Task): Task[] {
+  public calculateTaskCompletion(tasks: Task[], maxTask: Task): Task[] {
     const completedTasks: Task[] = [];
     
     // 执行最大任务的数量
@@ -251,7 +252,7 @@ export class TaskManager {
   /**
    * 获取任务类型的友好名称
    */
-  private getTaskTypeName(taskType: TaskType): string {
+  public getTaskTypeName(taskType: TaskType): string {
     switch (taskType) {
       case TaskType.VIEW_POST:
         return '查看帖子';
@@ -328,5 +329,10 @@ export class TaskManager {
     } catch (error) {
       log.error('获取任务状态失败:', error instanceof Error ? error.message : String(error));
     }
+  }
+
+  // 暴露getter方法便于测试
+  public getRewardManager(): RewardManager {
+    return this.rewardManager;
   }
 } 

@@ -32,10 +32,7 @@ describe('LikePostHandler（集成业务安全测试）', () => {
       toggleLike: jest.fn(),
       getFuliStatus: jest.fn()
     };
-    mockFrequencyController = new FrequencyController({
-      getMinDelay: () => 0,
-      getMaxDelay: () => 0
-    });
+    mockFrequencyController = new FrequencyController(0, 0);
     jest.spyOn(mockFrequencyController, 'randomDelay').mockResolvedValue(undefined);
     mockContext = {
       apiClient: mockApiClient,

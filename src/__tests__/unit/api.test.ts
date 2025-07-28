@@ -1,13 +1,6 @@
-// TODO: 测试问题梳理
-// 1. 过度mock axios，所有请求都被拦截，导致无法发现真实网络层问题。
-// 2. 部分测试仅为覆盖异常分支（如网络超时、服务器错误、无效JSON等），但实际业务场景极少发生，建议只保留有实际意义的分支测试。
-// 3. 拦截器相关测试直接调用mock的拦截器函数，属于“白盒测试”，不利于维护和重构。
-// 4. 建议后续可引入集成测试，配合mock server或真实后端，提升测试的真实性和健壮性。
 import axios from 'axios';
 import { ApiClient } from '../../api';
-import { mockFuliStatusResponse, MockDataBuilder } from '../fixtures/mockData';
 import { createTestConfigManager } from '../setup/testSetup';
-
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -61,7 +54,7 @@ describe('ApiClient', () => {
     });
   });
 
-  describe('getFuliStatus', () => {
+  describe('API方法测试', () => {
     it('应该正确调用福利状态接口', async () => {
       const mockResponse = { data: { ret: 0, data: { pack: '{}' } } };
       const mockAxiosInstance = mockedAxios.create();
@@ -74,15 +67,6 @@ describe('ApiClient', () => {
       expect(result).toEqual(mockResponse.data);
     });
 
-    it('应该处理API错误响应', async () => {
-      const mockAxiosInstance = mockedAxios.create();
-      (mockAxiosInstance.post as jest.Mock).mockRejectedValue(new Error('网络错误'));
-
-      await expect(apiClient.getFuliStatus()).rejects.toThrow('网络错误');
-    });
-  });
-
-  describe('getPosts', () => {
     it('应该正确调用帖子列表接口', async () => {
       const mockResponse = { data: { ret: 0, data: { posts: [] } } };
       const mockAxiosInstance = mockedAxios.create();
@@ -114,9 +98,7 @@ describe('ApiClient', () => {
         })
       });
     });
-  });
 
-  describe('viewPost', () => {
     it('应该正确调用查看帖子接口', async () => {
       const mockResponse = { data: { ret: 0, data: {} } };
       const mockAxiosInstance = mockedAxios.create();
@@ -131,9 +113,7 @@ describe('ApiClient', () => {
       });
       expect(result).toEqual(mockResponse.data);
     });
-  });
 
-  describe('toggleLike', () => {
     it('应该正确调用点赞接口', async () => {
       const mockResponse = { data: { ret: 0, data: {} } };
       const mockAxiosInstance = mockedAxios.create();
@@ -167,9 +147,7 @@ describe('ApiClient', () => {
       });
       expect(result).toEqual(mockResponse.data);
     });
-  });
 
-  describe('getFuliScores', () => {
     it('应该正确调用积分接口', async () => {
       const mockResponse = { data: { ret: 0, data: { pack: '{"scoreA": 100, "scoreB": 50}' } } };
       const mockAxiosInstance = mockedAxios.create();
@@ -181,9 +159,7 @@ describe('ApiClient', () => {
       });
       expect(result).toEqual(mockResponse.data);
     });
-  });
 
-  describe('getSessionWithBindInfo', () => {
     it('应该正确调用会话信息接口', async () => {
       const mockResponse = { data: { ret: 0, data: { bind_info: { area_name: '测试区' } } } };
       const mockAxiosInstance = mockedAxios.create();
@@ -195,9 +171,7 @@ describe('ApiClient', () => {
       });
       expect(result).toEqual(mockResponse.data);
     });
-  });
 
-  describe('claimSignReward', () => {
     it('应该正确调用签到奖励接口', async () => {
       const mockResponse = { data: { ret: 0, data: {} } };
       const mockAxiosInstance = mockedAxios.create();
@@ -212,9 +186,7 @@ describe('ApiClient', () => {
       });
       expect(result).toEqual(mockResponse.data);
     });
-  });
 
-  describe('claimTaskReward', () => {
     it('应该正确调用任务奖励接口', async () => {
       const mockResponse = { data: { ret: 0, data: {} } };
       const mockAxiosInstance = mockedAxios.create();
@@ -231,14 +203,12 @@ describe('ApiClient', () => {
     });
   });
 
-  describe('错误处理和边界条件', () => {
-    it('应该处理网络超时', async () => {
+  describe('错误处理', () => {
+    it('应该处理API错误响应', async () => {
       const mockAxiosInstance = mockedAxios.create();
-      const timeoutError = new Error('timeout of 10000ms exceeded');
-      (timeoutError as any).code = 'ECONNABORTED';
-      (mockAxiosInstance.post as jest.Mock).mockRejectedValue(timeoutError);
+      (mockAxiosInstance.post as jest.Mock).mockRejectedValue(new Error('网络错误'));
 
-      await expect(apiClient.getPosts()).rejects.toThrow('timeout of 10000ms exceeded');
+      await expect(apiClient.getFuliStatus()).rejects.toThrow('网络错误');
     });
 
     it('应该处理服务器错误响应', async () => {
@@ -253,124 +223,157 @@ describe('ApiClient', () => {
       await expect(apiClient.getPosts()).rejects.toThrow('Request failed with status code 500');
     });
 
-    it('应该处理空响应数据', async () => {
-      const mockResponse = { data: null };
+    it('应该处理没有config的错误', async () => {
       const mockAxiosInstance = mockedAxios.create();
-      (mockAxiosInstance.post as jest.Mock).mockResolvedValue(mockResponse);
-
-      const result = await apiClient.getPosts();
-      expect(result).toBeNull();
-    });
-
-    it('应该处理无效JSON格式', async () => {
-      const mockResponse = { data: { ret: 0, data: { pack: 'invalid json' } } };
-      const mockAxiosInstance = mockedAxios.create();
-      (mockAxiosInstance.post as jest.Mock).mockResolvedValue(mockResponse);
-
-      // 这应该不会抛出异常，因为JSON解析错误在调用方处理
-      const result = await apiClient.getFuliScores();
-      expect(result).toEqual(mockResponse.data);
-    });
-
-    it('应该处理大数据量帖子列表', async () => {
-      const mockResponse = { data: { ret: 0, data: { posts: new Array(1000).fill({}) } } };
-      const mockAxiosInstance = mockedAxios.create();
-      (mockAxiosInstance.post as jest.Mock).mockResolvedValue(mockResponse);
-
-      const result = await apiClient.getPosts();
-      expect(result).toEqual(mockResponse.data);
-    });
-  });
-
-  describe('API功能测试', () => {
-    it('应该正确处理成功响应', async () => {
-      const mockResponse = { data: { ret: 0, data: { success: true } } };
-      const mockAxiosInstance = mockedAxios.create();
-      (mockAxiosInstance.post as jest.Mock).mockResolvedValue(mockResponse);
-
-      const result = await apiClient.getPosts();
-      expect(result.ret).toBe(0);
-      expect((result.data as any).success).toBe(true);
-    });
-
-    it('应该正确处理错误响应', async () => {
-      const mockResponse = { data: { ret: -1, errmsg: '参数错误' } };
-      const mockAxiosInstance = mockedAxios.create();
-      (mockAxiosInstance.post as jest.Mock).mockResolvedValue(mockResponse);
-
-      const result = await apiClient.getPosts();
-      expect(result.ret).toBe(-1);
-      expect(result.errmsg).toBe('参数错误');
-    });
-
-    it('应该处理网络异常', async () => {
-      const mockAxiosInstance = mockedAxios.create();
-      (mockAxiosInstance.post as jest.Mock).mockRejectedValue(new Error('网络连接失败'));
+      const error = new Error('网络连接失败');
+      // 没有config属性
+      (mockAxiosInstance.post as jest.Mock).mockRejectedValue(error);
 
       await expect(apiClient.getPosts()).rejects.toThrow('网络连接失败');
     });
 
-    it('应该正确传递参数', async () => {
-      const mockResponse = { data: { ret: 0, data: {} } };
+    it('应该处理没有response的错误', async () => {
       const mockAxiosInstance = mockedAxios.create();
-      (mockAxiosInstance.post as jest.Mock).mockResolvedValue(mockResponse);
+      const error = new Error('网络连接失败');
+      (error as any).config = { url: '/test' };
+      // 没有response属性
+      (mockAxiosInstance.post as jest.Mock).mockRejectedValue(error);
 
-      await apiClient.viewPost('test-post-id');
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/7tn8putvbu_p', {
-        r: 'GetPostDetail',
-        d: JSON.stringify({
-          postId: 'test-post-id'
-        })
-      });
-    });
-  });
-
-  describe('拦截器测试', () => {
-    it('应该记录请求信息', async () => {
-      const mockResponse = { data: { ret: 0, data: {} } };
-      const mockAxiosInstance = mockedAxios.create();
-      (mockAxiosInstance.post as jest.Mock).mockResolvedValue(mockResponse);
-
-      // 模拟拦截器调用
-      const requestInterceptor = (mockAxiosInstance.interceptors.request.use as jest.Mock).mock.calls[0][0];
-      const responseInterceptor = (mockAxiosInstance.interceptors.response.use as jest.Mock).mock.calls[0][0];
-
-      // 测试请求拦截器
-      const requestConfig = { url: '/test', method: 'POST' };
-      const result = requestInterceptor(requestConfig);
-      expect(result).toEqual(requestConfig);
-
-      // 测试响应拦截器
-      const response = { status: 200, config: { url: '/test' } };
-      const responseResult = responseInterceptor(response);
-      expect(responseResult).toEqual(response);
+      await expect(apiClient.getPosts()).rejects.toThrow('网络连接失败');
     });
 
-    it('应该处理请求配置错误', async () => {
+    it('应该处理没有data的错误响应', async () => {
       const mockAxiosInstance = mockedAxios.create();
-      
-      // 模拟请求拦截器错误处理
-      const requestErrorHandler = (mockAxiosInstance.interceptors.request.use as jest.Mock).mock.calls[0][1];
-      const error = new Error('请求配置错误');
-      
-      await expect(requestErrorHandler(error)).rejects.toThrow('请求配置错误');
-    });
-
-    it('应该处理响应错误', async () => {
-      const mockAxiosInstance = mockedAxios.create();
-      
-      // 模拟响应拦截器错误处理
-      const responseErrorHandler = (mockAxiosInstance.interceptors.response.use as jest.Mock).mock.calls[0][1];
-      const error = new Error('响应错误');
+      const error = new Error('服务器错误');
       (error as any).config = { url: '/test' };
       (error as any).response = { 
-        status: 500, 
-        data: { errmsg: '服务器错误' } 
+        status: 500
+        // 没有data属性
       };
-      
-      await expect(responseErrorHandler(error)).rejects.toThrow('响应错误');
+      (mockAxiosInstance.post as jest.Mock).mockRejectedValue(error);
+
+      await expect(apiClient.getPosts()).rejects.toThrow('服务器错误');
+    });
+
+    it('应该处理没有errmsg的错误响应', async () => {
+      const mockAxiosInstance = mockedAxios.create();
+      const error = new Error('服务器错误');
+      (error as any).config = { url: '/test' };
+      (error as any).response = { 
+        status: 500,
+        data: {} // 没有errmsg属性
+      };
+      (mockAxiosInstance.post as jest.Mock).mockRejectedValue(error);
+
+      await expect(apiClient.getPosts()).rejects.toThrow('服务器错误');
     });
   });
 
+  describe('拦截器分支测试', () => {
+    it('应该处理请求配置中缺少url的情况', async () => {
+      const mockAxiosInstance = mockedAxios.create();
+      
+      // 获取请求拦截器
+      const requestInterceptor = (mockAxiosInstance.interceptors.request.use as jest.Mock).mock.calls[0][0];
+      
+      // 测试缺少url的配置
+      const configWithoutUrl = { method: 'POST' };
+      const result = requestInterceptor(configWithoutUrl);
+      expect(result).toEqual(configWithoutUrl);
+    });
 
+    it('应该处理请求配置中缺少method的情况', async () => {
+      const mockAxiosInstance = mockedAxios.create();
+      
+      // 获取请求拦截器
+      const requestInterceptor = (mockAxiosInstance.interceptors.request.use as jest.Mock).mock.calls[0][0];
+      
+      // 测试缺少method的配置
+      const configWithoutMethod = { url: '/test' };
+      const result = requestInterceptor(configWithoutMethod);
+      expect(result).toEqual(configWithoutMethod);
+    });
+
+    it('应该处理响应配置中缺少url的情况', async () => {
+      const mockAxiosInstance = mockedAxios.create();
+      
+      // 获取响应拦截器
+      const responseInterceptor = (mockAxiosInstance.interceptors.response.use as jest.Mock).mock.calls[0][0];
+      
+      // 测试缺少url的响应配置
+      const responseWithoutUrl = { 
+        status: 200,
+        config: {}, // 没有url
+        data: { ret: 0, data: {} } 
+      };
+      const result = responseInterceptor(responseWithoutUrl);
+      expect(result).toEqual(responseWithoutUrl);
+    });
+
+    it('应该处理错误响应中缺少config的情况', async () => {
+      const mockAxiosInstance = mockedAxios.create();
+      
+      // 获取响应错误处理器
+      const responseErrorHandler = (mockAxiosInstance.interceptors.response.use as jest.Mock).mock.calls[0][1];
+      
+      // 测试没有config的错误
+      const errorWithoutConfig = new Error('网络连接失败');
+      await expect(responseErrorHandler(errorWithoutConfig)).rejects.toThrow('网络连接失败');
+    });
+
+    it('应该处理错误响应中缺少response的情况', async () => {
+      const mockAxiosInstance = mockedAxios.create();
+      
+      // 获取响应错误处理器
+      const responseErrorHandler = (mockAxiosInstance.interceptors.response.use as jest.Mock).mock.calls[0][1];
+      
+      // 测试有config但没有response的错误
+      const errorWithConfig = new Error('网络连接失败');
+      (errorWithConfig as any).config = { url: '/test' };
+      await expect(responseErrorHandler(errorWithConfig)).rejects.toThrow('网络连接失败');
+    });
+
+    it('应该处理错误响应中缺少data的情况', async () => {
+      const mockAxiosInstance = mockedAxios.create();
+      
+      // 获取响应错误处理器
+      const responseErrorHandler = (mockAxiosInstance.interceptors.response.use as jest.Mock).mock.calls[0][1];
+      
+      // 测试有response但没有data的错误
+      const errorWithResponse = new Error('服务器错误');
+      (errorWithResponse as any).config = { url: '/test' };
+      (errorWithResponse as any).response = { 
+        status: 500
+        // 没有data属性
+      };
+      await expect(responseErrorHandler(errorWithResponse)).rejects.toThrow('服务器错误');
+    });
+
+    it('应该处理错误响应中缺少errmsg的情况', async () => {
+      const mockAxiosInstance = mockedAxios.create();
+      
+      // 获取响应错误处理器
+      const responseErrorHandler = (mockAxiosInstance.interceptors.response.use as jest.Mock).mock.calls[0][1];
+      
+      // 测试有data但没有errmsg的错误
+      const errorWithData = new Error('服务器错误');
+      (errorWithData as any).config = { url: '/test' };
+      (errorWithData as any).response = { 
+        status: 500,
+        data: {} // 没有errmsg属性
+      };
+      await expect(responseErrorHandler(errorWithData)).rejects.toThrow('服务器错误');
+    });
+
+    it('应该处理请求拦截器错误', async () => {
+      const mockAxiosInstance = mockedAxios.create();
+      
+      // 获取请求错误处理器
+      const requestErrorHandler = (mockAxiosInstance.interceptors.request.use as jest.Mock).mock.calls[0][1];
+      
+      // 测试请求拦截器错误处理
+      const requestError = new Error('请求配置错误');
+      await expect(requestErrorHandler(requestError)).rejects.toThrow('请求配置错误');
+    });
+  });
 }); 

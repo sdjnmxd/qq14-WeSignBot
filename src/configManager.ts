@@ -284,7 +284,9 @@ export class ConfigManager {
    * 获取全局最小延迟，优先级：env > accounts.json > 默认
    */
   getMinDelay(): number {
-    const minDelay = Number(process.env.MIN_DELAY_MS) || this.config.globalMinDelay || 1000;
+    const envMinDelay = process.env.MIN_DELAY_MS;
+    const parsedEnvDelay = envMinDelay !== undefined && envMinDelay !== '' ? Number(envMinDelay) : null;
+    const minDelay = !isNaN(parsedEnvDelay!) && parsedEnvDelay !== null ? parsedEnvDelay : (this.config.globalMinDelay ?? 1000);
     if (this.config.globalMinDelay === undefined && !process.env.MIN_DELAY_MS) {
       log.warn('⚠️  最小延迟未配置，使用默认值: 1000ms');
       log.info('💡 可在 accounts.json 中设置 globalMinDelay，或使用环境变量 MIN_DELAY_MS');
@@ -296,7 +298,9 @@ export class ConfigManager {
    * 获取全局最大延迟，优先级：env > accounts.json > 默认
    */
   getMaxDelay(): number {
-    const maxDelay = Number(process.env.MAX_DELAY_MS) || this.config.globalMaxDelay || 3000;
+    const envMaxDelay = process.env.MAX_DELAY_MS;
+    const parsedEnvDelay = envMaxDelay !== undefined && envMaxDelay !== '' ? Number(envMaxDelay) : null;
+    const maxDelay = !isNaN(parsedEnvDelay!) && parsedEnvDelay !== null ? parsedEnvDelay : (this.config.globalMaxDelay ?? 3000);
     if (this.config.globalMaxDelay === undefined && !process.env.MAX_DELAY_MS) {
       log.warn('⚠️  最大延迟未配置，使用默认值: 3000ms');
       log.info('💡 可在 accounts.json 中设置 globalMaxDelay，或使用环境变量 MAX_DELAY_MS');

@@ -60,7 +60,7 @@ mockRewardManager = {} as unknown as jest.Mocked<RewardManager>;
     const expectedApiConfig = { ...config, configManager: mockConfigManager };
 
     new ApiClient(expectedApiConfig);
-    new FrequencyController({ getMinDelay: () => 1000, getMaxDelay: () => 3000 });
+    new FrequencyController(1000, 3000);
     new TaskManager(mockApiClient, mockFrequencyController);
     new RewardManager(mockApiClient);
 

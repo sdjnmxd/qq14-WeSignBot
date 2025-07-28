@@ -1,13 +1,7 @@
-// TODO: 测试问题梳理
-// 1. 过度mock TaskManager、RewardManager、ApiClient、FrequencyController，导致测试与真实业务脱节，难以发现集成问题。
-// 2. 多处直接mock和调用AccountExecutor的私有方法（如getAccountStats、countAvailableRewards），属于“白盒测试”，不利于维护和重构。
-// 3. 部分测试仅为覆盖异常分支（如JSON解析失败、API错误、缺少字段等），但实际业务场景极少发生，建议只保留有实际意义的分支测试。
-// 4. 由于AccountExecutor高度依赖外部模块，建议后续考虑引入依赖注入或接口抽象，提升可测试性和可维护性。
 import { AccountExecutor } from '../../accountExecutor';
 import { createTestConfigManager } from '../setup/testSetup';
 import { AccountConfig } from '../../types';
 
-// Mock all dependencies
 jest.mock('../../taskManager');
 jest.mock('../../rewardManager');
 jest.mock('../../api');
@@ -33,22 +27,36 @@ describe('AccountExecutor', () => {
       enabled: true
     };
 
-    // Setup mocks
     mockTaskManager = {
       verifyLogin: jest.fn().mockResolvedValue(undefined),
       executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
+      getTasks: jest.fn().mockResolvedValue([
+        { id: '1', status: 1 }, // 已完成
+        { id: '2', status: 0 }  // 未完成
+      ]),
       apiClient: {
         getFuliScores: jest.fn().mockResolvedValue({ 
           ret: 0, 
           data: { pack: JSON.stringify({ scoreA: 100, scoreB: 50 }) } 
+        }),
+        getSessionWithBindInfo: jest.fn().mockResolvedValue({
+          ret: 0,
+          data: { bind_info: { role_name: '测试角色' } }
         })
       }
     };
 
     mockRewardManager = {
       claimAllRewards: jest.fn().mockResolvedValue(undefined),
-      countAvailableRewards: jest.fn().mockResolvedValue(5)
+      apiClient: {
+        getFuliStatus: jest.fn().mockResolvedValue({
+          ret: 0,
+          data: { pack: JSON.stringify({ 
+            weekdays: [{ status: 1 }], // 可领取的签到奖励
+            tasks: [{ status: 1 }]     // 可领取的任务奖励
+          })}
+        })
+      }
     };
 
     mockApiClient = {
@@ -70,263 +78,270 @@ describe('AccountExecutor', () => {
     FrequencyController.mockImplementation(() => ({}));
   });
 
-  it('应该能正常执行账号任务', async () => {
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.accountId).toBe('test');
-    expect(result.success).toBe(true);
-  });
-
-  it('应该处理无效账号配置', async () => {
-    const badAccount = { ...mockAccount, cookie: '' };
-    
-    mockTaskManager.verifyLogin.mockRejectedValue(new Error('登录失败'));
-    
-    const result = await accountExecutor.executeAccount(badAccount as any);
-    expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
-  });
-
-  it('应该处理登录验证失败', async () => {
-    mockTaskManager.verifyLogin.mockRejectedValue(new Error('登录失败'));
-    
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('登录失败');
-  });
-
-  it('应该处理任务执行失败', async () => {
-    mockTaskManager.executeAllTasks.mockRejectedValue(new Error('任务失败'));
-    
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('任务失败');
-  });
-
-  it('应该处理奖励领取失败', async () => {
-    mockRewardManager.claimAllRewards.mockRejectedValue(new Error('奖励失败'));
-    
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('奖励失败');
-  });
-
-  it('应该处理获取积分信息失败时应该使用默认值', async () => {
-    mockTaskManager.apiClient.getFuliScores.mockRejectedValue(new Error('获取积分失败'));
-    
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-  });
-
-  it('应该处理获取积分信息异常时应该使用默认值', async () => {
-    mockTaskManager.apiClient.getFuliScores.mockImplementation(() => {
-      throw new Error('积分接口异常');
-    });
-    
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-  });
-
-  it('应该处理获取会话信息失败时应该继续执行', async () => {
-    mockTaskManager.apiClient.getSessionWithBindInfo = jest.fn().mockRejectedValue(new Error('获取会话失败'));
-    
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-  });
-
-  it('应该处理获取会话信息返回错误时应该继续执行', async () => {
-    mockTaskManager.apiClient.getSessionWithBindInfo = jest.fn().mockResolvedValue({
-      ret: 1,
-      errmsg: '会话获取失败',
-      data: {}
-    });
-    
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-  });
-
-  it('应该处理会话信息没有bind_info时应该继续执行', async () => {
-    mockTaskManager.apiClient.getSessionWithBindInfo = jest.fn().mockResolvedValue({
-      ret: 0,
-      errmsg: '',
-      data: {}
-    });
-    
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-  });
-
-  it('应该处理会话信息没有role_name时应该继续执行', async () => {
-    mockTaskManager.apiClient.getSessionWithBindInfo = jest.fn().mockResolvedValue({
-      ret: 0,
-      errmsg: '',
-      data: {
-        bind_info: {}
-      }
-    });
-    
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-  });
-
-  it('应该处理统计奖励数量失败时应该返回0', async () => {
-    mockRewardManager.countAvailableRewards.mockRejectedValue(new Error('统计失败'));
-    
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-  });
-
-  it('应该处理统计奖励数量返回错误时应该返回0', async () => {
-    mockRewardManager.countAvailableRewards.mockResolvedValue({
-      ret: 1,
-      errmsg: '统计失败',
-      data: {}
-    });
-    
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-  });
-
-  it('应该处理统计奖励数量异常时应该返回0', async () => {
-    mockRewardManager.countAvailableRewards.mockImplementation(() => {
-      throw new Error('统计异常');
-    });
-    
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-  });
-
-  it('应该处理获取账号统计信息失败时应该使用默认值', async () => {
-    mockTaskManager.getTasks.mockRejectedValue(new Error('获取统计失败'));
-    
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-  });
-
-  it('应该处理获取账号统计信息异常时应该使用默认值', async () => {
-    mockTaskManager.getTasks.mockImplementation(() => {
-      throw new Error('统计异常');
-    });
-    
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-  });
-
-  it('应该测试displayAccountStats方法', async () => {
-    // 设置mock返回有奖励的数据
-    mockTaskManager.getTasks.mockResolvedValue([
-      { id: '1', status: 1 },
-      { id: '2', status: 0 }
-    ]);
-    mockRewardManager.countAvailableRewards.mockResolvedValue(3);
-    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
-      ret: 0,
-      data: { pack: JSON.stringify({ scoreA: 150, scoreB: 75 }) }
+  describe('核心业务逻辑', () => {
+    it('应该能正常执行账号任务', async () => {
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.accountId).toBe('test');
+      expect(result.success).toBe(true);
+      expect(result.stats).toBeDefined();
     });
 
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
+    it('应该处理登录验证失败', async () => {
+      mockTaskManager.verifyLogin.mockRejectedValue(new Error('登录失败'));
+      
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('登录失败');
+    });
+
+    it('应该处理任务执行失败', async () => {
+      mockTaskManager.executeAllTasks.mockRejectedValue(new Error('任务失败'));
+      
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('任务失败');
+    });
+
+    it('应该处理奖励领取失败', async () => {
+      mockRewardManager.claimAllRewards.mockRejectedValue(new Error('奖励失败'));
+      
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('奖励失败');
+    });
   });
 
-  it('应该测试displayExecutionSummary方法', async () => {
-    // 设置mock返回有变化的数据
-    mockTaskManager.getTasks.mockResolvedValue([
-      { id: '1', status: 1 },
-      { id: '2', status: 1 }
-    ]);
-    mockRewardManager.countAvailableRewards.mockResolvedValue(1); // 最终奖励数量减少
-    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
-      ret: 0,
-      data: { pack: JSON.stringify({ scoreA: 200, scoreB: 100 }) }
+  describe('统计信息处理', () => {
+    it('应该正确获取账号统计信息', async () => {
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(true);
+      expect(result.stats).toBeDefined();
+      expect(result.stats?.totalTasks).toBe(2);
+      expect(result.stats?.completedTasks).toBe(1);
     });
 
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
+    it('应该处理获取任务列表失败', async () => {
+      mockTaskManager.getTasks.mockRejectedValue(new Error('获取任务失败'));
+      
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(true);
+      expect(result.stats?.totalTasks).toBe(0);
+    });
+
+    it('应该处理获取积分信息失败', async () => {
+      mockTaskManager.apiClient.getFuliScores.mockRejectedValue(new Error('获取积分失败'));
+      
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(true);
+      expect(result.stats?.coins).toBe(0);
+    });
   });
 
-  it('应该测试countAvailableRewards方法', async () => {
-    // 设置mock返回有奖励的数据
-    mockTaskManager.getTasks.mockResolvedValue([]);
-    mockRewardManager.countAvailableRewards.mockResolvedValue(5);
-    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
-      ret: 0,
-      data: { pack: JSON.stringify({ scoreA: 100, scoreB: 50 }) }
+  describe('奖励统计', () => {
+    it('应该正确统计可领取奖励', async () => {
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(true);
+      expect(result.stats?.availableRewards).toBe(2); // 1个签到奖励 + 1个任务奖励
     });
 
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
+    it('应该处理奖励状态获取失败', async () => {
+      mockRewardManager.apiClient.getFuliStatus.mockRejectedValue(new Error('获取奖励状态失败'));
+      
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(true);
+      expect(result.stats?.availableRewards).toBe(0);
+    });
+
+    it('应该处理奖励状态返回错误', async () => {
+      mockRewardManager.apiClient.getFuliStatus.mockResolvedValue({
+        ret: 1,
+        errmsg: '获取失败'
+      });
+      
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(true);
+      expect(result.stats?.availableRewards).toBe(0);
+    });
   });
 
-  it('应该测试countAvailableRewards异常情况', async () => {
-    mockTaskManager.getTasks.mockResolvedValue([]);
-    mockRewardManager.countAvailableRewards.mockImplementation(() => {
-      throw new Error('统计奖励异常');
-    });
-    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
-      ret: 0,
-      data: { pack: JSON.stringify({ scoreA: 100, scoreB: 50 }) }
+  describe('显示逻辑测试', () => {
+    it('应该显示有奖励的统计信息', async () => {
+      // 设置有奖励的情况
+      mockRewardManager.apiClient.getFuliStatus.mockResolvedValue({
+        ret: 0,
+        data: { pack: JSON.stringify({ 
+          weekdays: [{ status: 1 }], // 可领取的签到奖励
+          tasks: [{ status: 1 }]     // 可领取的任务奖励
+        })}
+      });
+
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(true);
+      expect(result.stats?.availableRewards).toBe(2);
     });
 
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
+    it('应该显示任务完成情况', async () => {
+      // 设置任务完成的情况
+      mockTaskManager.getTasks.mockResolvedValue([
+        { id: '1', status: 1 }, // 已完成
+        { id: '2', status: 1 }  // 已完成
+      ]);
+
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(true);
+      expect(result.stats?.completedTasks).toBe(2);
+    });
+
+    it('应该显示积分变化', async () => {
+      // 设置积分变化的情况
+      mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
+        ret: 0,
+        data: { pack: JSON.stringify({ scoreA: 200, scoreB: 100 }) }
+      });
+
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(true);
+      expect(result.stats?.coins).toBe(200);
+      expect(result.stats?.crystals).toBe(100);
+    });
+
+    it('应该显示任务完成和奖励领取的情况', async () => {
+      // 设置初始状态：1个任务完成，2个奖励可领取
+      mockTaskManager.getTasks.mockResolvedValue([
+        { id: '1', status: 1 }, // 已完成
+        { id: '2', status: 0 }  // 未完成
+      ]);
+      mockRewardManager.apiClient.getFuliStatus.mockResolvedValue({
+        ret: 0,
+        data: { pack: JSON.stringify({ 
+          weekdays: [{ status: 1 }], // 可领取的签到奖励
+          tasks: [{ status: 1 }]     // 可领取的任务奖励
+        })}
+      });
+
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(true);
+      expect(result.stats?.completedTasks).toBe(1);
+      expect(result.stats?.availableRewards).toBe(2);
+    });
+
+    it('应该显示积分和奖励都增加的情况', async () => {
+      // 设置积分和奖励都增加的情况
+      mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
+        ret: 0,
+        data: { pack: JSON.stringify({ scoreA: 300, scoreB: 150 }) }
+      });
+      mockRewardManager.apiClient.getFuliStatus.mockResolvedValue({
+        ret: 0,
+        data: { pack: JSON.stringify({ 
+          weekdays: [{ status: 1 }], // 可领取的签到奖励
+          tasks: [{ status: 1 }]     // 可领取的任务奖励
+        })}
+      });
+
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(true);
+      expect(result.stats?.coins).toBe(300);
+      expect(result.stats?.crystals).toBe(150);
+      expect(result.stats?.availableRewards).toBe(2);
+    });
+
+    it('应该显示无新任务和奖励的情况', async () => {
+      // 设置无新任务和奖励的情况
+      mockTaskManager.getTasks.mockResolvedValue([
+        { id: '1', status: 1 }, // 已完成
+        { id: '2', status: 1 }  // 已完成
+      ]);
+      mockRewardManager.apiClient.getFuliStatus.mockResolvedValue({
+        ret: 0,
+        data: { pack: JSON.stringify({ 
+          weekdays: [{ status: 0 }], // 已领取的签到奖励
+          tasks: [{ status: 0 }]     // 已领取的任务奖励
+        })}
+      });
+
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(true);
+      expect(result.stats?.completedTasks).toBe(2);
+      expect(result.stats?.availableRewards).toBe(0);
+    });
   });
 
-  it('应该测试积分信息解析异常', async () => {
-    mockTaskManager.getTasks.mockResolvedValue([]);
-    mockRewardManager.countAvailableRewards.mockResolvedValue(0);
-    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
-      ret: 0,
-      data: { pack: 'invalid json' }
+  describe('执行摘要计算', () => {
+    it('应该正确计算任务完成情况', () => {
+      const executor = new AccountExecutor(configManager);
+      const initial = { completedTasks: 2, coins: 100, crystals: 50, availableRewards: 3 };
+      const final = { completedTasks: 5, coins: 100, crystals: 50, availableRewards: 3 };
+      
+      const summary = (executor as any).calculateExecutionSummary(initial, final);
+      
+      expect(summary.tasksDone).toBe(3);
+      expect(summary.coinsGained).toBe(0);
+      expect(summary.crystalsGained).toBe(0);
+      expect(summary.rewardsGained).toBe(0);
+      expect(summary.hasProgress).toBe(true);
     });
 
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
+    it('应该正确计算奖励领取情况', () => {
+      const executor = new AccountExecutor(configManager);
+      const initial = { completedTasks: 5, coins: 100, crystals: 50, availableRewards: 3 };
+      const final = { completedTasks: 5, coins: 100, crystals: 50, availableRewards: 1 };
+      
+      const summary = (executor as any).calculateExecutionSummary(initial, final);
+      
+      expect(summary.tasksDone).toBe(0);
+      expect(summary.rewardsGained).toBe(2);
+      expect(summary.hasProgress).toBe(true);
+    });
+
+    it('应该正确计算货币获得情况', () => {
+      const executor = new AccountExecutor(configManager);
+      const initial = { completedTasks: 5, coins: 100, crystals: 50, availableRewards: 3 };
+      const final = { completedTasks: 5, coins: 150, crystals: 80, availableRewards: 3 };
+      
+      const summary = (executor as any).calculateExecutionSummary(initial, final);
+      
+      expect(summary.coinsGained).toBe(50);
+      expect(summary.crystalsGained).toBe(30);
+      expect(summary.hasProgress).toBe(true);
+    });
+
+    it('应该正确识别无进展情况', () => {
+      const executor = new AccountExecutor(configManager);
+      const initial = { completedTasks: 5, coins: 100, crystals: 50, availableRewards: 3 };
+      const final = { completedTasks: 5, coins: 100, crystals: 50, availableRewards: 3 };
+      
+      const summary = (executor as any).calculateExecutionSummary(initial, final);
+      
+      expect(summary.tasksDone).toBe(0);
+      expect(summary.rewardsGained).toBe(0);
+      expect(summary.coinsGained).toBe(0);
+      expect(summary.crystalsGained).toBe(0);
+      expect(summary.hasProgress).toBe(false);
+    });
   });
 
-  it('应该测试积分信息ret不为0的情况', async () => {
-    mockTaskManager.getTasks.mockResolvedValue([]);
-    mockRewardManager.countAvailableRewards.mockResolvedValue(0);
-    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
-      ret: 1,
-      data: { pack: JSON.stringify({ scoreA: 100, scoreB: 50 }) }
+  describe('错误处理', () => {
+    it('应该处理JSON解析错误', async () => {
+      mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
+        ret: 0,
+        data: { pack: 'invalid json' }
+      });
+      
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(true);
+      expect(result.stats?.coins).toBe(0);
     });
 
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-  });
-
-  it('应该测试积分信息缺少pack字段的情况', async () => {
-    mockTaskManager.getTasks.mockResolvedValue([]);
-    mockRewardManager.countAvailableRewards.mockResolvedValue(0);
-    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
-      ret: 0,
-      data: {}
+    it('应该处理缺少字段的情况', async () => {
+      mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
+        ret: 0,
+        data: { pack: JSON.stringify({}) } // 缺少scoreA和scoreB
+      });
+      
+      const result = await accountExecutor.executeAccount(mockAccount);
+      expect(result.success).toBe(true);
+      expect(result.stats?.coins).toBe(0);
     });
-
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-  });
-
-  it('应该测试积分信息pack字段为空的情况', async () => {
-    mockTaskManager.getTasks.mockResolvedValue([]);
-    mockRewardManager.countAvailableRewards.mockResolvedValue(0);
-    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
-      ret: 0,
-      data: { pack: '' }
-    });
-
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-  });
-
-  it('应该测试积分信息scoreA和scoreB为undefined的情况', async () => {
-    mockTaskManager.getTasks.mockResolvedValue([]);
-    mockRewardManager.countAvailableRewards.mockResolvedValue(0);
-    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
-      ret: 0,
-      data: { pack: JSON.stringify({}) }
-    });
-
-    const result = await accountExecutor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
   });
 }); 

@@ -52,6 +52,9 @@ async function runMultiAccountMode(): Promise<void> {
   const configManager = new ConfigManager();
   const scheduler = new Scheduler(configManager);
   
+  // 显示调度状态概览
+  scheduler.showScheduleStatus();
+  
   // 启动调度器
   await scheduler.start();
   
@@ -74,15 +77,27 @@ async function runMultiAccountMode(): Promise<void> {
     process.exit(0);
   });
   
-  // 保持进程存活
-  process.stdin.resume();
+  // 防止进程意外退出
+  process.on('uncaughtException', (error) => {
+    log.error('未捕获的异常:', error);
+    scheduler.stop();
+    process.exit(1);
+  });
+  
+  process.on('unhandledRejection', (reason, promise) => {
+    log.error('未处理的Promise拒绝:', reason);
+    scheduler.stop();
+    process.exit(1);
+  });
 }
 
 /**
  * 单账号模式（向后兼容）
  */
 async function runSingleAccountMode(): Promise<void> {
+  const startTime = new Date();
   log.info('启动单账号模式...');
+  log.info(`开始时间: ${startTime.toLocaleString('zh-CN')}`);
   
   // 配置信息
   const CONFIG = {
@@ -106,7 +121,7 @@ async function runSingleAccountMode(): Promise<void> {
   // 初始化客户端
   const configManager = new ConfigManager();
   const apiClient = new ApiClient({ ...CONFIG, configManager });
-  const frequencyController = new FrequencyController(configManager);
+  const frequencyController = new FrequencyController(configManager.getMinDelay(), configManager.getMaxDelay());
 
   // 验证登录态
   log.info('开始验证登录态...');
@@ -137,7 +152,10 @@ async function runSingleAccountMode(): Promise<void> {
   // 显示执行摘要
   displayExecutionSummary(initialStats, finalStats);
 
-  log.success('✅ 脚本执行完成！');
+  const endTime = new Date();
+  const duration = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
+  log.success(`✅ 脚本执行完成！总耗时: ${duration}秒`);
+  log.info(`结束时间: ${endTime.toLocaleString('zh-CN')}`);
 }
 
 // 获取简化统计信息
@@ -242,4 +260,4 @@ function displayExecutionSummary(initial: {
   }
 }
 
-main(); 
+main();

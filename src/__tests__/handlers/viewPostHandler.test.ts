@@ -27,10 +27,7 @@ describe('ViewPostHandler', () => {
       getFuliStatus: jest.fn()
     };
     
-    mockFrequencyController = new FrequencyController({
-      getMinDelay: () => 0,
-      getMaxDelay: () => 0
-    });
+    mockFrequencyController = new FrequencyController(0, 0);
     jest.spyOn(mockFrequencyController, 'randomDelay').mockResolvedValue(undefined);
     
     mockContext = {
@@ -731,10 +728,7 @@ describe('ViewPostHandler', () => {
         type: TaskType.VIEW_POST
       };
 
-      const mockFrequencyControllerForError = new FrequencyController({
-        getMinDelay: () => 0,
-        getMaxDelay: () => 0
-      });
+      const mockFrequencyControllerForError = new FrequencyController(0, 0);
       jest.spyOn(mockFrequencyControllerForError, 'randomDelay').mockRejectedValue(new Error('延时异常'));
       
       const mockContext = {
