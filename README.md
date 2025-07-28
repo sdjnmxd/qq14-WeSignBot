@@ -1,5 +1,13 @@
 # QQ14微信小程序签到脚本
 
+[![CI](https://github.com/sdjnmxd/qq14-WeSignBot/actions/workflows/ci.yml/badge.svg)](https://github.com/sdjnmxd/qq14-WeSignBot/actions/workflows/ci.yml)
+[![Release](https://github.com/sdjnmxd/qq14-WeSignBot/actions/workflows/release.yml/badge.svg)](https://github.com/sdjnmxd/qq14-WeSignBot/actions/workflows/release.yml)
+[![Docker Image](https://img.shields.io/docker/pulls/sdjnmxd/qq14-wesignbot)](https://hub.docker.com/r/sdjnmxd/qq14-wesignbot)
+[![Test Coverage](https://codecov.io/gh/sdjnmxd/qq14-WeSignBot/branch/main/graph/badge.svg)](https://codecov.io/gh/sdjnmxd/qq14-WeSignBot)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-22.x-green.svg)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 一个基于Node.js + TypeScript的QQ14微信小程序自动签到脚本，支持多账号和定时执行。
 
 ## ⚠️ 重要免责声明
@@ -46,24 +54,30 @@
 - 可以同时管理多个账号
 - 每个账号独立运行，互不影响
 - 支持为每个账号设置不同的执行时间
+- 支持账号的启用/禁用管理
 
 ### ⏰ 定时执行
 - 可以设置每天固定的执行时间
 - 支持一天执行多次
 - 程序启动时可以选择立即执行一次
+- 智能调度，避免重复执行
 
 ### 🛡️ 安全保护
 - 每次操作之间有随机延迟，模拟真人操作
 - 遇到错误会自动重试
 - 有详细的日志记录，方便查看运行状态
+- 频率控制，避免过于频繁的API调用
 
 ### 🐳 部署简单
 - Docker一键部署
 - 配置文件简单易懂
+- 支持多架构（amd64/arm64）
 
 ## 快速开始
 
-### 1. 准备配置文件
+### 🐳 Docker 部署（推荐）
+
+#### 1. 准备配置文件
 
 复制示例配置文件：
 ```bash
@@ -93,9 +107,9 @@ cp accounts.example.json accounts.json
 }
 ```
 
-### 2. 使用Docker运行
+#### 2. 运行容器
 
-运行容器：
+**使用最新版本：**
 ```bash
 docker run -d \
   --name qq14-bot \
@@ -103,7 +117,27 @@ docker run -d \
   sdjnmxd/qq14-wesignbot:latest
 ```
 
-### 3. 查看运行状态
+**使用特定版本：**
+```bash
+docker run -d \
+  --name qq14-bot \
+  -v $(pwd)/accounts.json:/app/accounts.json \
+  sdjnmxd/qq14-wesignbot:v1.0.0
+```
+
+**使用Docker Compose：**
+```yaml
+version: '3.8'
+services:
+  qq14-bot:
+    image: sdjnmxd/qq14-wesignbot:latest
+    container_name: qq14-bot
+    volumes:
+      - ./accounts.json:/app/accounts.json
+    restart: unless-stopped
+```
+
+#### 3. 查看运行状态
 
 查看日志：
 ```bash
@@ -115,17 +149,117 @@ docker logs qq14-bot
 docker logs -f qq14-bot
 ```
 
+停止容器：
+```bash
+docker stop qq14-bot
+```
+
+### 📦 本地部署
+
+#### 1. 环境要求
+- Node.js 22.x 或更高版本
+- npm 10.x 或更高版本
+
+#### 2. 安装依赖
+```bash
+npm install
+```
+
+#### 3. 配置账号
+```bash
+cp accounts.example.json accounts.json
+# 编辑 accounts.json 文件
+```
+
+#### 4. 运行程序
+```bash
+# 开发模式
+npm start
+
+# 生产模式
+npm run start:prod
+
+# 多账号模式
+npm run start:multi
+```
+
+### 🔧 开发环境
+
+#### 1. 克隆项目
+```bash
+git clone https://github.com/sdjnmxd/qq14-WeSignBot.git
+cd qq14-WeSignBot
+```
+
+#### 2. 安装依赖
+```bash
+npm install
+```
+
+#### 3. 运行测试
+```bash
+# 运行所有测试
+npm test
+
+# 运行测试并生成覆盖率报告
+npm run test:coverage
+
+# 监听模式
+npm run test:watch
+```
+
+#### 4. 代码质量检查
+```bash
+# 代码格式化
+npm run lint:fix
+
+# 类型检查
+npm run type-check
+```
+
 ## 配置说明
 
 ### 账号配置
 
 每个账号包含以下字段：
 
-- `id`: 账号唯一标识
-- `name`: 账号名称（可选）
-- `cookie`: 账号的cookie信息
-- `schedule`: 执行计划配置（可选）
-- `enabled`: 是否启用该账号
+- `id`: 账号唯一标识（必填）
+- `name`: 账号名称（可选，用于日志显示）
+- `cookie`: 账号的cookie信息（必填）
+- `schedule`: 执行计划配置（可选，不设置则使用全局配置）
+- `enabled`: 是否启用该账号（可选，默认为true）
+
+#### 完整配置示例
+```json
+{
+  "accounts": [
+    {
+      "id": "account1",
+      "name": "主账号",
+      "cookie": "openid=xxx; acctype=qc; appid=xxx; access_token=xxx",
+      "schedule": {
+        "times": ["08:00", "12:00", "18:00"],
+        "runOnStart": true
+      },
+      "enabled": true
+    },
+    {
+      "id": "account2", 
+      "name": "备用账号",
+      "cookie": "openid=yyy; acctype=qc; appid=yyy; access_token=yyy",
+      "enabled": false
+    }
+  ],
+  "globalSchedule": {
+    "times": ["08:00", "12:00", "18:00"],
+    "runOnStart": true
+  },
+  "globalUA": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+  "globalReferer": "https://servicewechat.com/wx9d135ab589f8beb9/21/page-frame.html",
+  "globalMinDelay": 1000,
+  "globalMaxDelay": 3000
+}
+```
 
 ### 执行计划配置
 
@@ -137,41 +271,163 @@ docker logs -f qq14-bot
 }
 ```
 
-- `times`: 每天执行的时间点数组（24小时制）
+- `times`: 每天执行的时间点数组（24小时制，格式：HH:MM）
 - `runOnStart`: 是否在程序启动时立即执行一次
 
-### 全局默认配置
+#### 时间格式说明
+- 支持格式：`HH:MM`（如：08:00, 12:30, 18:45）
+- 24小时制
+- 可以设置多个时间点
+- 程序会按照时间顺序执行
 
-`globalSchedule` 字段用于设置新账号的默认执行计划。如果账号没有设置 `schedule` 字段，将使用全局配置。
+### 全局配置
+
+#### globalSchedule
+用于设置新账号的默认执行计划。如果账号没有设置 `schedule` 字段，将使用全局配置。
+
+#### globalUA
+全局User-Agent设置，用于HTTP请求头。
+
+#### globalReferer  
+全局Referer设置，用于HTTP请求头。
+
+#### globalMinDelay / globalMaxDelay
+全局延迟范围设置（毫秒），用于控制操作间隔。
+
+### 环境变量支持
+
+支持通过环境变量覆盖配置：
+
+```bash
+# 覆盖User-Agent
+export WECHAT_UA="自定义UA"
+
+# 覆盖Referer
+export WECHAT_REFERER="自定义Referer"
+
+# 覆盖延迟范围
+export MIN_DELAY_MS=1000
+export MAX_DELAY_MS=3000
+```
 
 ## 注意事项
 
+### 🔒 安全建议
 - **频率控制**: 每次操作之间有1-3秒随机延迟，模拟真实用户行为
 - **安全保护**: 避免过于频繁的API调用，降低被检测风险
 - **错误处理**: 遇到错误会自动重试，有详细的执行日志
 - **多账号隔离**: 每个账号独立执行，互不影响
 
+### ⚡ 性能优化
+- **智能调度**: 避免重复执行已完成的任务
+- **资源管理**: 合理控制内存和CPU使用
+- **网络优化**: 使用连接池和请求复用
+- **缓存策略**: 缓存任务状态，减少重复请求
+
+### 🐛 故障排除
+
+#### 常见问题
+
+**1. Cookie过期**
+```
+❌ 登录态验证失败: 验证失败
+```
+**解决方案**: 重新获取Cookie
+
+**2. 网络连接问题**
+```
+❌ 网络请求失败: timeout
+```
+**解决方案**: 检查网络连接，适当增加延迟
+
+**3. 配置文件错误**
+```
+❌ 配置文件格式错误
+```
+**解决方案**: 检查JSON格式，参考示例配置
+
+#### 日志级别
+
+程序支持不同级别的日志输出：
+- `INFO`: 一般信息
+- `WARN`: 警告信息  
+- `ERROR`: 错误信息
+- `DEBUG`: 调试信息（开发模式）
+
+### 📈 监控建议
+
+#### 日志监控
+- 定期检查执行日志
+- 关注错误和警告信息
+- 监控任务完成情况
+
+#### 性能监控
+- 监控内存使用情况
+- 检查网络请求频率
+- 关注任务执行时间
+
+#### 安全监控
+- 定期检查Cookie有效性
+- 监控异常登录行为
+- 关注账号状态变化 
+
 ## 获取Cookie
 
-### 方法一：使用抓包工具（推荐）
+### 🔍 方法一：使用抓包工具（推荐）
 
+#### 准备工作
 1. 安装抓包工具（如：Fiddler、Charles、mitmproxy等）
 2. 配置抓包工具代理
 3. 在微信中设置代理，连接到抓包工具
-4. 打开QQ14小程序，进行任意操作
-5. 在抓包工具中找到API请求
-6. 复制请求头中的Cookie信息
 
-### 方法二：使用手机抓包
+#### 获取步骤
+1. 打开QQ14小程序
+2. 进行任意操作（如查看帖子、点赞等）
+3. 在抓包工具中找到API请求
+4. 复制请求头中的Cookie信息
 
+#### 推荐工具
+- **Fiddler**: Windows平台，功能强大
+- **Charles**: 跨平台，界面友好
+- **mitmproxy**: 命令行工具，适合自动化
+
+### 📱 方法二：使用手机抓包
+
+#### 准备工作
 1. 在手机上安装抓包APP（如：HttpCanary、Packet Capture等）
-2. 打开抓包APP，选择微信应用
-3. 打开QQ14小程序，进行任意操作
-4. 在抓包APP中找到API请求
-5. 复制请求头中的Cookie信息
+2. 确保手机和电脑在同一网络
 
-### 注意事项
+#### 获取步骤
+1. 打开抓包APP，选择微信应用
+2. 打开QQ14小程序，进行任意操作
+3. 在抓包APP中找到API请求
+4. 复制请求头中的Cookie信息
 
+#### 推荐APP
+- **HttpCanary**: Android平台，功能全面
+- **Packet Capture**: 简单易用
+- **Thor**: iOS平台专用
+
+### ⚠️ 安全注意事项
+
+#### Cookie安全
 - Cookie包含敏感信息，请妥善保管
+- 不要在不安全的环境下获取Cookie
+- 定期更换Cookie，提高安全性
+
+#### 时效性
 - Cookie有时效性，过期需要重新获取
-- 建议定期检查Cookie是否有效 
+- 建议定期检查Cookie是否有效
+- 发现异常及时更新Cookie
+
+## 📄 许可证
+
+本项目采用 [MIT 许可证](LICENSE)。
+
+## 📞 联系方式
+
+- **项目地址**: https://github.com/sdjnmxd/qq14-WeSignBot
+- **Docker Hub**: https://hub.docker.com/r/sdjnmxd/qq14-wesignbot
+- **问题反馈**: https://github.com/sdjnmxd/qq14-WeSignBot/issues
+
+**⚠️ 再次提醒**: 本项目仅供学习和研究目的使用，请遵守相关平台的服务条款，合理使用技术工具。 
