@@ -43,19 +43,21 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@types/node-schedule": "^2.1.8",
     "axios": "^1.6.0",
-    "dotenv": "^17.2.0"
+    "dotenv": "^17.2.0",
+    "node-schedule": "^2.1.1"
   },
   "devDependencies": {
     "@types/jest": "^29.0.0",
     "@types/node": "^22.0.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
+    "codecov": "^3.8.3",
     "eslint": "^8.0.0",
     "jest": "^29.0.0",
     "ts-jest": "^29.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.0.0",
-    "codecov": "^3.8.3"
+    "typescript": "^5.0.0"
   }
 }

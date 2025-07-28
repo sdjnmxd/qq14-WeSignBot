@@ -1,36 +1,18 @@
-import { AccountConfig, ScheduleConfig, AccountExecutionStatus, AccountExecutionResult } from './types';
 import { ConfigManager } from './configManager';
 import { AccountExecutor } from './accountExecutor';
+import { AccountConfig, AccountExecutionResult } from './types';
 import { log } from './utils/logger';
+import * as schedule from 'node-schedule';
 
 export class Scheduler {
   private configManager: ConfigManager;
   private accountExecutor: AccountExecutor;
-  private timers: Map<string, ReturnType<typeof setTimeout>> = new Map();
-  private executionStatus: Map<string, AccountExecutionStatus> = new Map();
+  private jobs: Map<string, schedule.Job> = new Map();
   private isRunning: boolean = false;
 
   constructor(configManager: ConfigManager) {
     this.configManager = configManager;
     this.accountExecutor = new AccountExecutor(configManager);
-    this.initializeExecutionStatus();
-  }
-
-  /**
-   * 初始化执行状态
-   */
-  private initializeExecutionStatus(): void {
-    const accounts = this.configManager.getEnabledAccounts();
-    for (const account of accounts) {
-      this.executionStatus.set(account.id, {
-        accountId: account.id,
-        accountName: account.name || account.id,
-        executionCount: 0,
-        successCount: 0,
-        errorCount: 0,
-        isRunning: false
-      });
-    }
   }
 
   /**
@@ -42,220 +24,129 @@ export class Scheduler {
       return;
     }
 
-    log.info('启动多账号调度器...');
-
     const accounts = this.configManager.getEnabledAccounts();
     if (accounts.length === 0) {
-      log.warn('没有启用的账号，请先配置账号信息');
+      log.warn('没有启用的账号');
       return;
     }
 
     this.isRunning = true;
-    log.info(`发现 ${accounts.length} 个启用的账号`);
+    log.info(`启动调度器，管理 ${accounts.length} 个账号`);
 
-    // 为每个账号设置定时器
+    // 为每个账号设置定时任务
     for (const account of accounts) {
       await this.scheduleAccount(account);
     }
 
     log.success('调度器启动完成');
-    
-    // 保持调度器运行
-    log.info('调度器将持续运行，等待定时执行...');
   }
 
   /**
    * 停止调度器
    */
   stop(): void {
-    if (!this.isRunning) {
-      return;
-    }
+    if (!this.isRunning) return;
 
     log.info('停止调度器...');
     this.isRunning = false;
 
-    // 清除所有定时器
-    for (const [accountId, timer] of this.timers) {
-      clearTimeout(timer);
-      this.timers.delete(accountId);
+    // 停止所有定时任务
+    for (const [accountId, job] of this.jobs) {
+      job.cancel();
     }
+    this.jobs.clear();
 
     log.success('调度器已停止');
   }
 
   /**
-   * 为单个账号设置定时器
+   * 为单个账号设置定时任务
    */
   private async scheduleAccount(account: AccountConfig): Promise<void> {
-    const status = this.executionStatus.get(account.id);
-    if (!status) {
-      log.error(`账号状态不存在: ${account.id}`);
-      return;
-    }
-
     // 检查是否在启动时立即执行
     if (account.schedule.runOnStart) {
       log.info(`账号 ${account.name || account.id} 将在启动时立即执行`);
-      setTimeout(async () => {
-        await this.executeAccount(account);
-      }, 1000);
+      setTimeout(() => this.executeAccount(account), 1000);
     }
 
     // 设置定时执行
-    this.setupAccountTimers(account);
+    this.setupScheduleJob(account);
   }
 
   /**
-   * 设置账号的定时器
+   * 设置定时任务
    */
-  private setupAccountTimers(account: AccountConfig): void {
-    const status = this.executionStatus.get(account.id);
-    if (!status) return;
-
-    // 清除现有定时器
-    const existingTimer = this.timers.get(account.id);
-    if (existingTimer) {
-      clearTimeout(existingTimer);
+  private setupScheduleJob(account: AccountConfig): void {
+    // 停止现有的定时任务
+    const existingJob = this.jobs.get(account.id);
+    if (existingJob) {
+      existingJob.cancel();
     }
 
-    // 计算下次执行时间
-    const nextExecution = this.calculateNextExecution(account.schedule);
-    if (!nextExecution) {
+    // 生成定时规则
+    const rule = this.generateScheduleRule(account.schedule.times);
+    if (!rule) {
       log.warn(`账号 ${account.name || account.id} 没有有效的执行计划`);
       return;
     }
 
-    const delay = nextExecution.getTime() - Date.now();
-    
-    if (delay <= 0) {
-      // 如果延迟为负数，立即执行
-      log.info(`账号 ${account.name || account.id} 立即执行`);
-      const timer = setTimeout(() => {
-        this.executeAccount(account);
-        // 执行完成后重新设置定时器
-        this.setupAccountTimers(account);
-      }, 1000);
-      if (timer && typeof timer === 'object' && typeof timer.unref === 'function') {
-        timer.unref();
-      }
-      this.timers.set(account.id, timer);
-    } else {
-      // 设置定时器
-      const timer = setTimeout(() => {
-        this.executeAccount(account);
-        // 执行完成后重新设置定时器
-        this.setupAccountTimers(account);
-      }, delay);
-      if (timer && typeof timer === 'object' && typeof timer.unref === 'function') {
-        timer.unref();
-      }
-      this.timers.set(account.id, timer);
-      
-      const nextTime = nextExecution.toLocaleTimeString('zh-CN', { 
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-      
-      log.info(`账号 ${account.name || account.id} 下次执行时间: ${nextTime}`);
-    }
+    // 创建定时任务
+    const job = schedule.scheduleJob(rule, () => {
+      this.executeAccount(account);
+    });
 
-    // 更新状态
-    status.nextExecution = nextExecution;
-    this.executionStatus.set(account.id, status);
+    this.jobs.set(account.id, job);
+    log.info(`账号 ${account.name || account.id} 定时任务已设置`);
   }
 
   /**
-   * 计算下次执行时间
+   * 生成定时规则
    */
-  private calculateNextExecution(schedule: ScheduleConfig): Date | null {
-    const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes(); // 当前时间（分钟）
+  private generateScheduleRule(times: string[]): schedule.RecurrenceRule | null {
+    if (!times || times.length === 0) return null;
 
-    if (schedule.times && schedule.times.length > 0) {
-      // 使用固定时间点
-      const timeMinutes = schedule.times.map(time => {
-        const [hours, minutes] = time.split(':').map(Number);
-        return hours * 60 + minutes;
-      });
+    const minutes: number[] = [];
+    const hours: number[] = [];
 
-      // 找到下一个执行时间
-      const nextTime = timeMinutes.find(time => time > currentTime);
-      if (nextTime !== undefined) {
-        const nextDate = new Date();
-        nextDate.setHours(Math.floor(nextTime / 60), nextTime % 60, 0, 0);
-        return nextDate;
-      } else {
-        // 如果今天没有更多时间点，设置为明天的第一个时间点
-        const firstTime = Math.min(...timeMinutes);
-        const nextDate = new Date();
-        nextDate.setDate(nextDate.getDate() + 1);
-        nextDate.setHours(Math.floor(firstTime / 60), firstTime % 60, 0, 0);
-        return nextDate;
+    for (const time of times) {
+      const [hour, minute] = time.split(':').map(Number);
+      if (!isNaN(hour) && !isNaN(minute)) {
+        hours.push(hour);
+        minutes.push(minute);
       }
     }
 
-    return null;
+    if (hours.length === 0) return null;
+
+    const rule = new schedule.RecurrenceRule();
+    rule.hour = [...new Set(hours)].sort((a, b) => a - b);
+    rule.minute = [...new Set(minutes)].sort((a, b) => a - b);
+    rule.second = 0;
+
+    return rule;
   }
 
   /**
    * 执行单个账号的任务
    */
   private async executeAccount(account: AccountConfig): Promise<void> {
-    const status = this.executionStatus.get(account.id);
-    if (!status) return;
-
-    if (status.isRunning) {
-      log.warn(`账号 ${account.name || account.id} 正在执行中，跳过本次执行`);
-      return;
-    }
-
-    status.isRunning = true;
-    status.lastExecution = new Date();
-    status.executionCount++;
-
     log.info(`开始执行账号: ${account.name || account.id}`);
 
     try {
       const result = await this.accountExecutor.executeAccount(account);
       
       if (result.success) {
-        status.successCount++;
-        status.lastResult = result;
         log.success(`账号 ${account.name || account.id} 执行成功`);
-        
         if (result.stats) {
           log.subInfo(`完成任务: ${result.stats.completedTasks}/${result.stats.totalTasks}`);
           log.subInfo(`获得积分: 光之币 +${result.stats.coins}, 友谊水晶 +${result.stats.crystals}`);
         }
       } else {
-        status.errorCount++;
-        status.lastError = result.error;
-        status.lastResult = result;
         log.error(`账号 ${account.name || account.id} 执行失败: ${result.error}`);
       }
     } catch (error) {
-      status.errorCount++;
-      status.lastError = error instanceof Error ? error.message : String(error);
-      status.lastResult = {
-        accountId: account.id,
-        accountName: account.name || account.id,
-        success: false,
-        startTime: status.lastExecution!,
-        endTime: new Date(),
-        duration: Date.now() - status.lastExecution!.getTime(),
-        error: status.lastError
-      };
-      log.error(`账号 ${account.name || account.id} 执行异常:`, status.lastError);
-    } finally {
-      status.isRunning = false;
-      this.executionStatus.set(account.id, status);
-      
-      // 执行完成后重新设置定时器
-      if (this.isRunning) {
-        this.setupAccountTimers(account);
-      }
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      log.error(`账号 ${account.name || account.id} 执行异常:`, errorMsg);
     }
   }
 
@@ -274,42 +165,25 @@ export class Scheduler {
       return null;
     }
 
-    log.info(`手动执行账号: ${account.name || account.id}`);
-    return await this.accountExecutor.executeAccount(account);
+    await this.executeAccount(account);
+    return null; // 简化返回，如果需要结果可以调用 accountExecutor.executeAccount
   }
 
   /**
-   * 获取所有账号的执行状态
-   */
-  getExecutionStatus(): AccountExecutionStatus[] {
-    return Array.from(this.executionStatus.values());
-  }
-
-  /**
-   * 获取指定账号的执行状态
-   */
-  getAccountExecutionStatus(accountId: string): AccountExecutionStatus | undefined {
-    return this.executionStatus.get(accountId);
-  }
-
-  /**
-   * 重新加载配置并重启调度器
+   * 重新加载配置
    */
   async reload(): Promise<void> {
     log.info('重新加载配置...');
     
-    try {
-      // 停止当前调度器
-      this.stop();
-      
-      // 重新加载配置
-      this.configManager.reloadConfig();
-      this.initializeExecutionStatus();
-      
-      // 重新启动调度器
+    // 停止所有定时任务
+    for (const [accountId, job] of this.jobs) {
+      job.cancel();
+    }
+    this.jobs.clear();
+
+    // 重新启动调度器
+    if (this.isRunning) {
       await this.start();
-    } catch (error) {
-      log.error('重新加载配置失败:', error instanceof Error ? error.message : String(error));
     }
   }
 

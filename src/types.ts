@@ -304,13 +304,8 @@ export interface MultiAccountConfig {
 export interface AccountExecutionStatus {
   accountId: string;
   accountName: string;
-  lastExecution?: Date;
-  nextExecution?: Date;
-  executionCount: number;
-  successCount: number;
-  errorCount: number;
-  lastError?: string;
   isRunning: boolean;
+  lastExecution?: Date;
   lastResult?: AccountExecutionResult;
 }
 
