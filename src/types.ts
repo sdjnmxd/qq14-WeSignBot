@@ -1,3 +1,4 @@
+import { FrequencyController } from './frequencyController';
 // 任务类型枚举 - 值直接对应API返回的字符串
 export enum TaskType {
   VIEW_POST = 'view_post_count',
@@ -47,7 +48,7 @@ export interface TaskHandler {
 // 任务上下文
 export interface TaskContext {
   apiClient: unknown; // ApiClient实例
-  frequencyController: unknown; // FrequencyController实例
+  frequencyController: FrequencyController; // FrequencyController实例
 }
 
 // 奖励接口
@@ -286,8 +287,6 @@ export interface AccountConfig {
 export interface ScheduleConfig {
   // 每天执行的时间点（24小时制）
   times: string[];      // 例如: ["08:00", "12:00", "18:00"]
-  // 执行间隔（分钟），如果设置了times则忽略此配置
-  interval?: number;    // 每隔多少分钟执行一次
   // 是否在启动时立即执行一次
   runOnStart?: boolean;
 }
@@ -312,6 +311,7 @@ export interface AccountExecutionStatus {
   errorCount: number;
   lastError?: string;
   isRunning: boolean;
+  lastResult?: AccountExecutionResult;
 }
 
 // 账号执行结果

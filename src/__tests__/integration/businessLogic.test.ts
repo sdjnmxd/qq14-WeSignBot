@@ -1,3 +1,9 @@
+// TODO: 测试问题梳理
+// 1. 过度mock ApiClient、FrequencyController、RewardManager，导致集成测试与真实业务脱节，难以发现集成和边界问题。
+// 2. 多处通过mock console.log来断言日志输出，虽然可以接受，但建议优先断言业务行为，日志断言只做补充。
+// 3. 部分测试仅为覆盖异常分支（如JSON解析失败、网络异常、分页失败等），但实际业务场景极少发生，建议只保留有实际意义的分支测试。
+// 4. 多个测试用例实际会sleep，导致测试慢且不稳定，建议用jest.useFakeTimers()模拟时间流逝。
+// 5. 建议后续可引入端到端测试，配合mock server或真实后端，提升测试的真实性和健壮性。
 import { TaskManager } from '../../taskManager';
 
 import { ApiClient } from '../../api';

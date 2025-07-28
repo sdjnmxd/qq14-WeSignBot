@@ -57,7 +57,7 @@ export class LikePostHandler implements TaskHandler {
           
           if (isLiked) {
             // 等待并检查进度是否有变化
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await frequencyController.randomDelay();
             
             const progressAfter = await this.getProgress(task, apiClient);
             
@@ -71,7 +71,7 @@ export class LikePostHandler implements TaskHandler {
             log.debug(`点赞失败，跳过: ${post.title}`);
           }
           
-          await (frequencyController as { randomDelay: () => Promise<void> }).randomDelay();
+          await frequencyController.randomDelay();
           
         } catch (error) {
           log.debug(`点赞帖子失败，跳过: ${post.title}`);
@@ -108,7 +108,7 @@ export class LikePostHandler implements TaskHandler {
           }
           
           // 等待一下
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await frequencyController.randomDelay();
           
           // 重新点赞
           const isLiked = await this.tryLikePost(post.postId, apiClient);
@@ -119,7 +119,7 @@ export class LikePostHandler implements TaskHandler {
           }
           
           // 等待并检查进度是否有变化
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await frequencyController.randomDelay();
           
           const progressAfter = await this.getProgress(task, apiClient);
           
@@ -130,7 +130,7 @@ export class LikePostHandler implements TaskHandler {
             log.warn(`⚠️  进度未变化: ${progressBefore} -> ${progressAfter}`);
           }
           
-          await (frequencyController as { randomDelay: () => Promise<void> }).randomDelay();
+          await frequencyController.randomDelay();
           
         } catch (error) {
           log.debug(`取消重新点赞失败，跳过: ${post.title}`);
@@ -212,52 +212,43 @@ export class LikePostHandler implements TaskHandler {
     
     while (pageNum <= maxPages) {
       log.debug(`获取第 ${pageNum} 页帖子${lastId ? ` (lastId: ${lastId})` : ''}...`);
-      
-      const response = await (apiClient as { getPosts: (lastId?: string) => Promise<{ ret: number; errmsg: string; data: { pack: string } }> }).getPosts(lastId);
-      
-      if (response.ret !== 0) {
-        log.warn(`获取第 ${pageNum} 页帖子失败: ${response.errmsg}`);
-        break;
+      try {
+        const response = await (apiClient as { getPosts: (lastId?: string) => Promise<{ ret: number; errmsg: string; data: { pack: string } }> }).getPosts(lastId);
+        if (response.ret !== 0) {
+          log.warn(`获取第 ${pageNum} 页帖子失败: ${response.errmsg}`);
+          break;
+        }
+        // 解析帖子数据
+        const postsData = JSON.parse(response.data.pack);
+        const posts = postsData.posts || [];
+        if (posts.length === 0) {
+          log.debug(`第 ${pageNum} 页没有更多帖子，停止获取`);
+          break;
+        }
+        allPosts = allPosts.concat(posts);
+        log.debug(`第 ${pageNum} 页获取到 ${posts.length} 个帖子，累计 ${allPosts.length} 个`);
+        if (!postsData.lastId) {
+          log.debug('没有更多页面，停止获取');
+          break;
+        }
+        const currentUnlikedCount = allPosts.filter(post => !post.liked).length;
+        const currentLikedCount = allPosts.filter(post => post.liked).length;
+        if (currentUnlikedCount >= needCount) {
+          log.debug(`已获取足够的未点赞帖子 (${currentUnlikedCount} >= ${needCount})，停止获取更多页面`);
+          break;
+        } else if (currentUnlikedCount + currentLikedCount >= needCount * 5) {
+          log.debug(`已获取足够的帖子用于两种策略 (${allPosts.length} >= ${needCount * 5})，停止获取更多页面`);
+          break;
+        }
+        lastId = postsData.lastId;
+        pageNum++;
+        // 移除硬编码的延迟，使用频率控制器
+        // await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        log.error('分页接口失败', error instanceof Error ? error.message : String(error));
+        throw error;
       }
-
-      // 解析帖子数据
-      const postsData = JSON.parse(response.data.pack);
-      const posts = postsData.posts || [];
-      
-      if (posts.length === 0) {
-        log.debug(`第 ${pageNum} 页没有更多帖子，停止获取`);
-        break;
-      }
-      
-      allPosts = allPosts.concat(posts);
-      log.debug(`第 ${pageNum} 页获取到 ${posts.length} 个帖子，累计 ${allPosts.length} 个`);
-      
-      // 检查是否有下一页
-      if (!postsData.lastId) {
-        log.debug('没有更多页面，停止获取');
-        break;
-      }
-      
-      // 检查是否已经有足够的帖子
-      const currentUnlikedCount = allPosts.filter(post => !post.liked).length;
-      const currentLikedCount = allPosts.filter(post => post.liked).length;
-      
-      if (currentUnlikedCount >= needCount) {
-        log.debug(`已获取足够的未点赞帖子 (${currentUnlikedCount} >= ${needCount})，停止获取更多页面`);
-        break;
-      } else if (currentUnlikedCount + currentLikedCount >= needCount * 5) {
-        // 增加比例，确保有足够的帖子用于策略2
-        log.debug(`已获取足够的帖子用于两种策略 (${allPosts.length} >= ${needCount * 5})，停止获取更多页面`);
-        break;
-      }
-      
-      lastId = postsData.lastId;
-      pageNum++;
-      
-      // 添加小延迟避免请求过快
-      await new Promise(resolve => setTimeout(resolve, 500));
     }
-    
     log.info(`📄 共获取 ${pageNum - 1} 页，总计 ${allPosts.length} 个帖子`);
     return allPosts;
   }

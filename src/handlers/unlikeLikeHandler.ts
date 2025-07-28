@@ -61,7 +61,7 @@ export class UnlikeLikeHandler implements TaskHandler {
             log.debug(`  ✅ 取消点赞成功`);
             
             // 等待一下
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await frequencyController.randomDelay();
             
             // 步骤2: 重新点赞
             log.debug(`  🔄 步骤2: 重新点赞 ${post.postId}`);
@@ -71,7 +71,7 @@ export class UnlikeLikeHandler implements TaskHandler {
               log.debug(`  ✅ 重新点赞成功`);
               
               // 等待并检查进度是否有变化
-              await new Promise(resolve => setTimeout(resolve, 3000));
+              await frequencyController.randomDelay();
               
               const progressAfter = await this.getProgress(task, apiClient);
               
@@ -88,7 +88,7 @@ export class UnlikeLikeHandler implements TaskHandler {
             log.warn(`  ❌ 取消点赞失败`);
           }
           
-          await (frequencyController as { randomDelay: () => Promise<void> }).randomDelay();
+          await frequencyController.randomDelay();
           
         } catch (error) {
           log.error(`测试帖子 ${post.title} 时出错: ${error instanceof Error ? error.message : String(error)}`);
@@ -112,7 +112,7 @@ export class UnlikeLikeHandler implements TaskHandler {
           const likeResult = await this.tryToggleLike(post.postId, true, apiClient);
           
           if (likeResult) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await frequencyController.randomDelay();
             
             const progressAfter = await this.getProgress(task, apiClient);
             
@@ -122,7 +122,7 @@ export class UnlikeLikeHandler implements TaskHandler {
             }
           }
           
-          await (frequencyController as { randomDelay: () => Promise<void> }).randomDelay();
+          await frequencyController.randomDelay();
           
         } catch (error) {
           log.error(`点赞帖子 ${post.title} 时出错: ${error instanceof Error ? error.message : String(error)}`);

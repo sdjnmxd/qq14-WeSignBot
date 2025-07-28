@@ -270,7 +270,7 @@ export class TaskManager {
       case TaskType.CREATE_COMMENT:
         return '创建评论';
       default:
-        return taskType;
+        return '未知任务';
     }
   }
 

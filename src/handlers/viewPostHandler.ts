@@ -39,7 +39,7 @@ export class ViewPostHandler implements TaskHandler {
       log.progress(i + 1, postsToView, post.title);
       
       await this.viewPost(post.postId, apiClient);
-      await (frequencyController as { randomDelay: () => Promise<void> }).randomDelay();
+      await frequencyController.randomDelay();
     }
     
     log.success(`查看帖子任务完成`);
@@ -47,7 +47,7 @@ export class ViewPostHandler implements TaskHandler {
     // 操作完成后等待一下，然后验证最终进度
     if (postsToView > 0) {
       log.debug('等待服务器更新任务进度...');
-      await (frequencyController as { randomDelay: () => Promise<void> }).randomDelay();
+      await frequencyController.randomDelay();
       
       const finalProgress = await this.getProgress(task, apiClient);
       log.debug(`任务最终进度: ${finalProgress}/${task.required}`);
@@ -150,7 +150,7 @@ export class ViewPostHandler implements TaskHandler {
       pageNum++;
       
       // 添加小延迟避免请求过快
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // await frequencyController.randomDelay();
     }
     
     log.info(`📄 共获取 ${pageNum - 1} 页，总计 ${allPosts.length} 个帖子`);

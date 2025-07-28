@@ -1,3 +1,8 @@
+// TODO: 测试问题梳理
+// 1. 过度mock ApiClient，所有API请求都被拦截，导致无法发现真实接口和数据格式问题。
+// 2. 部分测试仅为覆盖异常分支（如JSON解析失败、API错误、缺少字段等），但实际业务场景极少发生，建议只保留有实际意义的分支测试。
+// 3. 多处通过mock console.log来断言日志输出，虽然可以接受，但建议优先断言业务行为，日志断言只做补充。
+// 4. 建议后续可引入集成测试，配合mock server或真实后端，提升测试的真实性和健壮性。
 import { RewardManager } from '../../rewardManager';
 import { ApiClient } from '../../api';
 

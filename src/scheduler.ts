@@ -43,7 +43,6 @@ export class Scheduler {
     }
 
     log.info('启动多账号调度器...');
-    this.isRunning = true;
 
     const accounts = this.configManager.getEnabledAccounts();
     if (accounts.length === 0) {
@@ -51,6 +50,7 @@ export class Scheduler {
       return;
     }
 
+    this.isRunning = true;
     log.info(`发现 ${accounts.length} 个启用的账号`);
 
     // 为每个账号设置定时器
@@ -126,7 +126,10 @@ export class Scheduler {
     if (delay <= 0) {
       // 如果延迟为负数，立即执行
       log.info(`账号 ${account.name || account.id} 立即执行`);
-      setTimeout(() => this.executeAccount(account), 1000);
+      const timer = setTimeout(() => this.executeAccount(account), 1000);
+      if (timer && typeof timer === 'object' && typeof timer.unref === 'function') {
+        timer.unref();
+      }
     } else {
       // 设置定时器
       const timer = setTimeout(() => {
@@ -134,7 +137,9 @@ export class Scheduler {
         // 执行完成后重新设置定时器
         this.setupAccountTimers(account);
       }, delay);
-
+      if (timer && typeof timer === 'object' && typeof timer.unref === 'function') {
+        timer.unref();
+      }
       this.timers.set(account.id, timer);
       
       const nextTime = nextExecution.toLocaleTimeString('zh-CN', { 
@@ -179,10 +184,6 @@ export class Scheduler {
         nextDate.setHours(Math.floor(firstTime / 60), firstTime % 60, 0, 0);
         return nextDate;
       }
-    } else if (schedule.interval) {
-      // 使用间隔时间
-      const nextDate = new Date(now.getTime() + schedule.interval * 60 * 1000);
-      return nextDate;
     }
 
     return null;
@@ -211,6 +212,7 @@ export class Scheduler {
       
       if (result.success) {
         status.successCount++;
+        status.lastResult = result;
         log.success(`账号 ${account.name || account.id} 执行成功`);
         
         if (result.stats) {
@@ -220,11 +222,21 @@ export class Scheduler {
       } else {
         status.errorCount++;
         status.lastError = result.error;
+        status.lastResult = result;
         log.error(`账号 ${account.name || account.id} 执行失败: ${result.error}`);
       }
     } catch (error) {
       status.errorCount++;
       status.lastError = error instanceof Error ? error.message : String(error);
+      status.lastResult = {
+        accountId: account.id,
+        accountName: account.name || account.id,
+        success: false,
+        startTime: status.lastExecution!,
+        endTime: new Date(),
+        duration: Date.now() - status.lastExecution!.getTime(),
+        error: status.lastError
+      };
       log.error(`账号 ${account.name || account.id} 执行异常:`, status.lastError);
     } finally {
       status.isRunning = false;
@@ -271,15 +283,19 @@ export class Scheduler {
   async reload(): Promise<void> {
     log.info('重新加载配置...');
     
-    // 停止当前调度器
-    this.stop();
-    
-    // 重新加载配置
-    this.configManager.reloadConfig();
-    this.initializeExecutionStatus();
-    
-    // 重新启动调度器
-    await this.start();
+    try {
+      // 停止当前调度器
+      this.stop();
+      
+      // 重新加载配置
+      this.configManager.reloadConfig();
+      this.initializeExecutionStatus();
+      
+      // 重新启动调度器
+      await this.start();
+    } catch (error) {
+      log.error('重新加载配置失败:', error instanceof Error ? error.message : String(error));
+    }
   }
 
   /**

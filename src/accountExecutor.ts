@@ -89,31 +89,43 @@ export class AccountExecutor {
    * 获取账号统计信息
    */
   private async getAccountStats(taskManager: TaskManager, rewardManager: RewardManager) {
-    const tasks = await taskManager.getTasks();
-    const completedTasks = tasks.filter(task => 
-      task.status === 1 || task.status === 2 // COMPLETED or CLAIMED
-    ).length;
-    const availableRewards = await this.countAvailableRewards(rewardManager);
-    
-    // 获取积分信息
-    const fuliResponse = await taskManager['apiClient'].getFuliScores();
-    let coins = 0;
-    let crystals = 0;
-    
-    if (fuliResponse.ret === 0) {
-      const scoresData = JSON.parse((fuliResponse.data as { pack: string }).pack);
-      coins = scoresData.scoreA || 0;
-      crystals = scoresData.scoreB || 0;
+    try {
+      const tasks = await taskManager.getTasks();
+      const completedTasks = tasks.filter(task => 
+        task.status === 1 || task.status === 2 // COMPLETED or CLAIMED
+      ).length;
+      const availableRewards = await this.countAvailableRewards(rewardManager);
+      
+      // 获取积分信息
+      const fuliResponse = await taskManager['apiClient'].getFuliScores();
+      let coins = 0;
+      let crystals = 0;
+      
+      if (fuliResponse.ret === 0) {
+        const scoresData = JSON.parse((fuliResponse.data as { pack: string }).pack);
+        coins = scoresData.scoreA || 0;
+        crystals = scoresData.scoreB || 0;
+      }
+      
+      return {
+        totalTasks: tasks.length,
+        completedTasks,
+        pendingTasks: tasks.length - completedTasks,
+        availableRewards,
+        coins,
+        crystals
+      };
+    } catch (error) {
+      // 返回默认值
+      return {
+        totalTasks: 0,
+        completedTasks: 0,
+        pendingTasks: 0,
+        availableRewards: 0,
+        coins: 0,
+        crystals: 0
+      };
     }
-    
-    return {
-      totalTasks: tasks.length,
-      completedTasks,
-      pendingTasks: tasks.length - completedTasks,
-      availableRewards,
-      coins,
-      crystals
-    };
   }
 
   /**

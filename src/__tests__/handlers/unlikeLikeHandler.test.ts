@@ -1,5 +1,12 @@
+// TODO: 测试问题梳理
+// 1. 过度mock ApiClient、FrequencyController，导致测试与真实业务脱节，难以发现集成问题。
+// 2. 多处通过mock console.log来断言日志输出，虽然可以接受，但建议优先断言业务行为，日志断言只做补充。
+// 3. 部分测试仅为覆盖异常分支（如点赞失败、网络异常、分页失败等），但实际业务场景极少发生，建议只保留有实际意义的分支测试。
+// 4. 多个测试用例实际会sleep，导致测试慢且不稳定，建议用jest.useFakeTimers()模拟时间流逝。
+// 5. 建议后续可引入集成测试，配合mock server或真实后端，提升测试的真实性和健壮性。
 import { UnlikeLikeHandler } from '../../handlers/unlikeLikeHandler';
 import { TaskType, Task, TaskContext } from '../../types';
+import { FrequencyController } from '../../frequencyController';
 
 describe('UnlikeLikeHandler', () => {
   let handler: UnlikeLikeHandler;
@@ -9,9 +16,7 @@ describe('UnlikeLikeHandler', () => {
     toggleLike: jest.Mock;
     getFuliStatus: jest.Mock;
   }>;
-  let mockFrequencyController: jest.Mocked<{
-    randomDelay: jest.Mock;
-  }>;
+  let mockFrequencyController: FrequencyController;
 
   beforeEach(() => {
     handler = new UnlikeLikeHandler();
@@ -22,9 +27,11 @@ describe('UnlikeLikeHandler', () => {
       getFuliStatus: jest.fn()
     };
     
-    mockFrequencyController = {
-      randomDelay: jest.fn().mockResolvedValue(undefined)
-    };
+    mockFrequencyController = new FrequencyController({
+      getMinDelay: () => 0,
+      getMaxDelay: () => 0
+    });
+    jest.spyOn(mockFrequencyController, 'randomDelay').mockResolvedValue(undefined);
     
     mockContext = {
       apiClient: mockApiClient,

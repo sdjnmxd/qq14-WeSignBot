@@ -169,6 +169,9 @@ export class ConfigManager {
       throw new Error(`账号ID已存在: ${account.id}`);
     }
 
+    // 验证账号配置
+    this.validateAccountConfig(account, this.config.globalSchedule);
+
     // 应用全局默认配置
     if (this.config.globalSchedule && !account.schedule.times.length) {
       account.schedule.times = [...this.config.globalSchedule.times];

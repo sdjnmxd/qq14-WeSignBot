@@ -1,3 +1,9 @@
+// TODO: 测试问题梳理
+// 1. 过度mock ApiClient、FrequencyController、RewardManager，导致测试与真实业务脱节，难以发现集成问题。
+// 2. 多处直接mock和调用TaskManager的私有方法（如optimizeTaskExecution、calculateTaskCompletion），属于“白盒测试”，不利于维护和重构。
+// 3. 部分测试仅为覆盖异常分支（如JSON解析失败、API错误、无效类型等），但实际业务场景极少发生，建议只保留有实际意义的分支测试。
+// 4. 多处通过mock console.log来断言日志输出，虽然可以接受，但建议优先断言业务行为，日志断言只做补充。
+// 5. 建议后续可引入集成测试，配合mock server或真实后端，提升测试的真实性和健壮性。
 import { TaskManager } from '../../taskManager';
 import { ApiClient } from '../../api';
 import { FrequencyController } from '../../frequencyController';
@@ -642,14 +648,113 @@ describe('TaskManager', () => {
     });
 
     it('应该获取正确的任务类型友好名称', () => {
-      // 仅用于测试私有方法
-      const getTaskTypeName = (taskManager as any).getTaskTypeName.bind(taskManager);
+      const { TaskManager } = require('../../taskManager');
+      const taskManager = new TaskManager(mockApiClient, mockFrequencyController);
       
-      expect(getTaskTypeName(TaskType.VIEW_POST)).toBe('查看帖子');
-      expect(getTaskTypeName(TaskType.LIKE_POST)).toBe('点赞帖子');
-      expect(getTaskTypeName(TaskType.SHARE_POST)).toBe('分享帖子');
-      expect(getTaskTypeName(TaskType.SIGN_IN)).toBe('签到');
-      expect(getTaskTypeName('unknown_type' as TaskType)).toBe('unknown_type');
+      expect(taskManager['getTaskTypeName'](TaskType.LIKE_POST)).toBe('点赞帖子');
+      expect(taskManager['getTaskTypeName'](TaskType.VIEW_POST)).toBe('查看帖子');
+      expect(taskManager['getTaskTypeName'](TaskType.SHARE_POST)).toBe('分享帖子');
+      expect(taskManager['getTaskTypeName']('unknown' as TaskType)).toBe('未知任务');
     });
   });
+
+  it('应该处理verifyLogin中的积分数据格式错误', async () => {
+    const { TaskManager } = require('../../taskManager');
+    const taskManager = new TaskManager(mockApiClient, mockFrequencyController);
+    
+    mockApiClient.getFuliScores.mockResolvedValue({
+      ret: 0,
+      errmsg: '',
+      data: {} // 缺少pack字段
+    });
+    
+    await expect(taskManager.verifyLogin()).rejects.toThrow('积分数据格式错误');
+  });
+
+  it('应该处理verifyLogin中的会话信息获取失败', async () => {
+    const { TaskManager } = require('../../taskManager');
+    const taskManager = new TaskManager(mockApiClient, mockFrequencyController);
+    
+    mockApiClient.getFuliScores.mockResolvedValue({
+      ret: 0,
+      errmsg: '',
+      data: { pack: JSON.stringify({ scoreA: 100, scoreB: 50 }) }
+    });
+    
+    mockApiClient.getSessionWithBindInfo.mockResolvedValue({
+      ret: 1,
+      errmsg: '会话获取失败',
+      data: {}
+    });
+    
+    await expect(taskManager.verifyLogin()).rejects.toThrow('获取会话信息失败');
+  });
+
+  it('应该处理verifyLogin中的未绑定游戏大区', async () => {
+    const { TaskManager } = require('../../taskManager');
+    const taskManager = new TaskManager(mockApiClient, mockFrequencyController);
+    
+    mockApiClient.getFuliScores.mockResolvedValue({
+      ret: 0,
+      errmsg: '',
+      data: { pack: JSON.stringify({ scoreA: 100, scoreB: 50 }) }
+    });
+    
+    mockApiClient.getSessionWithBindInfo.mockResolvedValue({
+      ret: 0,
+      errmsg: '',
+      data: {} // 没有bind_info
+    });
+    
+    // 这应该不会抛出异常，只是记录警告
+    await expect(taskManager.verifyLogin()).resolves.toBeUndefined();
+  });
+
+  it('应该处理getTasks中的福利状态获取失败', async () => {
+    const { TaskManager } = require('../../taskManager');
+    const taskManager = new TaskManager(mockApiClient, mockFrequencyController);
+    
+    mockApiClient.getFuliStatus.mockResolvedValue({
+      ret: 1,
+      errmsg: '福利状态获取失败',
+      data: {}
+    });
+    
+    await expect(taskManager.getTasks()).rejects.toThrow('获取福利状态失败');
+  });
+
+  it('应该处理getTasks中的JSON解析错误', async () => {
+    const { TaskManager } = require('../../taskManager');
+    const taskManager = new TaskManager(mockApiClient, mockFrequencyController);
+    
+    mockApiClient.getFuliStatus.mockResolvedValue({
+      ret: 0,
+      errmsg: '',
+      data: { pack: 'invalid json' }
+    });
+    
+    await expect(taskManager.getTasks()).rejects.toThrow();
+  });
+
+  it('应该处理getTasks中的无效任务类型', async () => {
+    const { TaskManager } = require('../../taskManager');
+    const taskManager = new TaskManager(mockApiClient, mockFrequencyController);
+    
+    mockApiClient.getFuliStatus.mockResolvedValue({
+      ret: 0,
+      errmsg: '',
+      data: { 
+        pack: JSON.stringify({
+          tasks: [
+            { type: 'invalid_type', status: 0, required: 1, current: 0 }
+          ]
+        })
+      }
+    });
+    
+    const tasks = await taskManager.getTasks();
+    expect(tasks).toHaveLength(0); // 无效类型应该被过滤掉
+  });
+
+
 }); 

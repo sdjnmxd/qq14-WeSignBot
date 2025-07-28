@@ -1,3 +1,8 @@
+// TODO: 测试问题梳理
+// 1. 过度mock TaskManager、ApiClient、FrequencyController、RewardManager，导致集成测试与真实业务脱节，难以发现集成和边界问题。
+// 2. 仅测试了组件能否被创建和方法能否被调用，缺乏真实业务流程和数据流的验证。
+// 3. 没有对实际业务行为、数据流、边界场景进行端到端验证，建议补充更贴近真实场景的集成测试。
+// 4. 建议后续可引入端到端测试，配合mock server或真实后端，提升测试的真实性和健壮性。
 import { TaskManager } from '../../taskManager';
 import { ApiClient } from '../../api';
 import { FrequencyController } from '../../frequencyController';

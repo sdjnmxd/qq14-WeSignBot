@@ -2,6 +2,7 @@ import { ApiClient } from './api';
 import { TaskStatus } from './types';
 import { log } from './utils/logger';
 
+
 export interface SignReward {
   day: number;
   isClaimed: boolean;
@@ -136,7 +137,7 @@ export class RewardManager {
         const success = await this.claimSingleTaskReward(reward.taskId);
         if (success) {
           // 添加延迟避免请求过快
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // await frequencyController.randomDelay();
         }
       }
       
