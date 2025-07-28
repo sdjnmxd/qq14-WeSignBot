@@ -320,8 +320,15 @@ export class Scheduler {
       log.subInfo(`启动时执行: ${account.schedule.runOnStart ? '是' : '否'}`);
       
       if (jobs && jobs.length > 0) {
-        // 使用实际创建的任务的下次执行时间
-        const nextTime = jobs[0]?.nextInvocation();
+        // 找到所有job中最近的下次执行时间
+        let nextTime: Date | null = null;
+        for (const job of jobs) {
+          const jobNextTime = job.nextInvocation();
+          if (jobNextTime && (!nextTime || jobNextTime < nextTime)) {
+            nextTime = jobNextTime;
+          }
+        }
+        
         if (nextTime) {
           const now = new Date();
           const timeDiff = nextTime.getTime() - now.getTime();
