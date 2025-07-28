@@ -21,7 +21,7 @@ jobs:
         cache: 'npm'
         
     - name: Cache Jest
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/jest
         key: ${{ runner.os }}-jest-${{ hashFiles('**/package-lock.json') }}
@@ -30,7 +30,7 @@ jobs:
           ${{ runner.os }}-jest-
           
     - name: Cache TypeScript
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/typescript
         key: ${{ runner.os }}-tsc-${{ hashFiles('**/tsconfig.json') }}
@@ -54,12 +54,13 @@ jobs:
       run: npm run test:coverage
       
     - name: Upload coverage reports
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         file: ./coverage/lcov.info
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
         
     - name: Run build test
       run: npm run build
