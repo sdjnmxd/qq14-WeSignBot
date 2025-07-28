@@ -52,7 +52,7 @@ jobs:
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
-        repository: ${{ secrets.DOCKERHUB_USERNAME }}/qq14-wesignbot
+        repository: ${{ github.repository }}
         readme-filepath: ./README.md
         short-description: "QQ14微信小程序自动签到脚本 - 支持多账号和定时执行"
-        enable-url-completion: true 
+        enable-url-completion: true
