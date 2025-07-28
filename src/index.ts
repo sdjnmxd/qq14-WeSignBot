@@ -84,7 +84,7 @@ async function runMultiAccountMode(): Promise<void> {
     process.exit(1);
   });
   
-  process.on('unhandledRejection', (reason, promise) => {
+   process.on('unhandledRejection', (reason) => {
     log.error('未处理的Promise拒绝:', reason);
     scheduler.stop();
     process.exit(1);

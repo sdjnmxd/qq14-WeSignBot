@@ -439,7 +439,7 @@ describe('Scheduler', () => {
       rule.minute = 30;
       rule.second = 0;
       
-      const result = scheduler['calculateNextExecutionTime'](rule, new Date());
+      const result = scheduler['calculateNextExecutionTime'](rule);
       expect(result).toBeDefined();
     });
 
@@ -450,7 +450,7 @@ describe('Scheduler', () => {
       invalidRule.minute = 70; // 无效的分钟
       invalidRule.second = 0;
       
-      const result = scheduler['calculateNextExecutionTime'](invalidRule, new Date());
+      const result = scheduler['calculateNextExecutionTime'](invalidRule);
       expect(result).toBeNull();
     });
 
@@ -464,7 +464,7 @@ describe('Scheduler', () => {
       rule.minute = 30;
       rule.second = 0;
       
-      const result = scheduler['calculateNextExecutionTime'](rule, new Date());
+      const result = scheduler['calculateNextExecutionTime'](rule);
       expect(result).toBeNull();
       
       // Restore original function
@@ -483,7 +483,7 @@ describe('Scheduler', () => {
       rule.minute = 30;
       rule.second = 0;
       
-      const result = scheduler['calculateNextExecutionTime'](rule, new Date());
+      const result = scheduler['calculateNextExecutionTime'](rule);
       expect(result).toBeNull();
       
       // Restore original function

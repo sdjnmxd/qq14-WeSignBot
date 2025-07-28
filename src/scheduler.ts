@@ -51,7 +51,7 @@ export class Scheduler {
     this.isRunning = false;
 
     // 停止所有定时任务
-    for (const [accountId, jobArray] of this.jobs) {
+    for (const [, jobArray] of this.jobs) {
       for (const job of jobArray) {
         job.cancel();
       }
@@ -279,7 +279,7 @@ export class Scheduler {
     log.info('重新加载配置...');
     
     // 停止所有定时任务
-    for (const [accountId, jobArray] of this.jobs) {
+    for (const [, jobArray] of this.jobs) {
       for (const job of jobArray) {
         job.cancel();
       }
@@ -320,7 +320,8 @@ export class Scheduler {
       log.subInfo(`启动时执行: ${account.schedule.runOnStart ? '是' : '否'}`);
       
       if (jobs && jobs.length > 0) {
-        const nextTime = jobs[0]?.nextInvocation(); // 假设第一个job是主要job
+        // 使用实际创建的任务的下次执行时间
+        const nextTime = jobs[0]?.nextInvocation();
         if (nextTime) {
           const now = new Date();
           const timeDiff = nextTime.getTime() - now.getTime();
@@ -358,7 +359,7 @@ export class Scheduler {
             rule.minute = timePoint.minute;
             rule.second = 0;
             
-            const calculatedNextTime = this.calculateNextExecutionTime(rule, now);
+            const calculatedNextTime = this.calculateNextExecutionTime(rule);
             if (calculatedNextTime && (!nextTime || calculatedNextTime < nextTime)) {
               nextTime = calculatedNextTime;
             }
@@ -390,7 +391,7 @@ export class Scheduler {
   /**
    * 计算下次执行时间
    */
-  private calculateNextExecutionTime(rule: schedule.RecurrenceRule, from: Date): Date | null {
+  private calculateNextExecutionTime(rule: schedule.RecurrenceRule): Date | null {
     try {
       // 创建一个临时的job来计算下次执行时间
       const tempJob = schedule.scheduleJob(rule, () => {});
