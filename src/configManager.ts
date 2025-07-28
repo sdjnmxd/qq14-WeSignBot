@@ -150,7 +150,23 @@ export class ConfigManager {
    * 获取所有启用的账号
    */
   getEnabledAccounts(): AccountConfig[] {
-    return this.config.accounts.filter(account => account.enabled !== false);
+    const enabledAccounts = this.config.accounts.filter(account => account.enabled !== false);
+    
+    return enabledAccounts.map(account => {
+      if (!account.schedule || typeof account.schedule !== 'object') {
+        if (this.config.globalSchedule) {
+          const accountWithSchedule = {
+            ...account,
+            schedule: { ...this.config.globalSchedule }
+          };
+          log.info(`账号 ${account.name || account.id} 使用全局默认执行计划`);
+          return accountWithSchedule;
+        } else {
+          throw new Error(`账号 ${account.id} 没有执行计划且没有全局默认配置`);
+        }
+      }
+      return account;
+    });
   }
 
   /**

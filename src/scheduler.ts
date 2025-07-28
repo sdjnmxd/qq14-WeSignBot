@@ -97,7 +97,9 @@ export class Scheduler {
     // 检查是否在启动时立即执行
     if (account.schedule.runOnStart) {
       log.info(`账号 ${account.name || account.id} 将在启动时立即执行`);
-      // 立即执行由 setupAccountTimers 处理，这里不需要额外设置
+      setTimeout(async () => {
+        await this.executeAccount(account);
+      }, 1000);
     }
 
     // 设置定时执行
