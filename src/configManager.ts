@@ -32,13 +32,13 @@ export class ConfigManager {
         log.error('❌ 配置文件不存在');
         log.info('💡 请创建配置文件 accounts.json');
         log.info('📝 配置文件格式请参考: accounts.example.json');
-        process.exit(1);
+        throw new Error('配置文件不存在');
       }
     } catch (error) {
       log.error('❌ 配置文件格式错误:', error instanceof Error ? error.message : String(error));
       log.info('💡 请检查配置文件格式是否正确');
       log.info('📝 配置文件格式请参考: accounts.example.json');
-      process.exit(1);
+      throw error;
     }
   }
 

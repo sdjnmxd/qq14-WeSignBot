@@ -6,18 +6,18 @@
 import axios from 'axios';
 import { ApiClient } from '../../api';
 import { mockFuliStatusResponse, MockDataBuilder } from '../fixtures/mockData';
-import { ConfigManager } from '../../configManager';
+import { createTestConfigManager } from '../setup/testSetup';
 
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('ApiClient', () => {
-  let configManager: ConfigManager;
+  let configManager: any;
   let apiClient: ApiClient;
 
   beforeEach(() => {
-    configManager = new ConfigManager();
+    configManager = createTestConfigManager();
     
     // Mock axios.create
     const mockAxiosInstance = {

@@ -756,5 +756,140 @@ describe('TaskManager', () => {
     expect(tasks).toHaveLength(0); // 无效类型应该被过滤掉
   });
 
+  it('应该获取正确的任务类型友好名称', () => {
+    const { TaskManager } = require('../../taskManager');
+    const taskManager = new TaskManager(mockApiClient, mockFrequencyController);
+    
+    expect(taskManager['getTaskTypeName'](TaskType.LIKE_POST)).toBe('点赞帖子');
+    expect(taskManager['getTaskTypeName'](TaskType.VIEW_POST)).toBe('查看帖子');
+    expect(taskManager['getTaskTypeName'](TaskType.SHARE_POST)).toBe('分享帖子');
+    expect(taskManager['getTaskTypeName'](TaskType.PUBLISH_POST)).toBe('发布帖子');
+    expect(taskManager['getTaskTypeName'](TaskType.SIGN_IN)).toBe('签到');
+    expect(taskManager['getTaskTypeName'](TaskType.VISIT_MINI)).toBe('访问小程序');
+    expect(taskManager['getTaskTypeName'](TaskType.CREATE_POST)).toBe('创建帖子');
+    expect(taskManager['getTaskTypeName'](TaskType.CREATE_COMMENT)).toBe('创建评论');
+    expect(taskManager['getTaskTypeName']('UNKNOWN' as TaskType)).toBe('未知任务');
+  });
+
+  it('应该测试showTaskStatus方法', async () => {
+    const mockTasks = [
+      {
+        id: '1',
+        name: '查看帖子任务',
+        type: TaskType.VIEW_POST,
+        progress: 2,
+        required: 3,
+        status: 0,
+        scoreA: 10,
+        scoreB: 5
+      },
+      {
+        id: '2',
+        name: '点赞任务',
+        type: TaskType.LIKE_POST,
+        progress: 1,
+        required: 2,
+        status: 0,
+        scoreA: 15,
+        scoreB: 8
+      },
+      {
+        id: '3',
+        name: '签到任务',
+        type: TaskType.SIGN_IN,
+        progress: 1,
+        required: 1,
+        status: 1,
+        scoreA: 20,
+        scoreB: 10
+      }
+    ];
+
+    jest.spyOn(taskManager, 'getTasks').mockResolvedValue(mockTasks);
+    jest.spyOn(taskManager['rewardManager'], 'showRewardStatus').mockResolvedValue();
+
+    await taskManager.showTaskStatus();
+
+    expect(taskManager['rewardManager'].showRewardStatus).toHaveBeenCalled();
+  });
+
+  it('应该测试showTaskStatus方法没有任务的情况', async () => {
+    jest.spyOn(taskManager, 'getTasks').mockResolvedValue([]);
+    jest.spyOn(taskManager['rewardManager'], 'showRewardStatus').mockResolvedValue();
+
+    await taskManager.showTaskStatus();
+
+    expect(taskManager['rewardManager'].showRewardStatus).not.toHaveBeenCalled();
+  });
+
+  it('应该测试showTaskStatus方法异常情况', async () => {
+    jest.spyOn(taskManager, 'getTasks').mockRejectedValue(new Error('获取任务失败'));
+    jest.spyOn(taskManager['rewardManager'], 'showRewardStatus').mockResolvedValue();
+
+    await taskManager.showTaskStatus();
+
+    expect(taskManager['rewardManager'].showRewardStatus).not.toHaveBeenCalled();
+  });
+
+  it('应该测试executeAllTasks中的异常处理', async () => {
+    const mockTasks = [
+      {
+        id: '1',
+        name: '测试任务',
+        type: TaskType.VIEW_POST,
+        progress: 0,
+        required: 1,
+        status: 0,
+        scoreA: 10,
+        scoreB: 5
+      }
+    ];
+
+    jest.spyOn(taskManager, 'getTasks').mockResolvedValue(mockTasks);
+    
+    // Mock handlers to avoid actual execution
+    const mockHandler = {
+      canHandle: jest.fn().mockReturnValue(true),
+      execute: jest.fn().mockResolvedValue(undefined),
+      getProgress: jest.fn().mockResolvedValue(0)
+    };
+    taskManager['handlers'].set(TaskType.VIEW_POST, mockHandler);
+    
+    jest.spyOn(taskManager['rewardManager'], 'claimAllRewards').mockRejectedValue(new Error('领取奖励失败'));
+
+    await expect(taskManager.executeAllTasks()).rejects.toThrow('领取奖励失败');
+  });
+
+  it('应该测试executeAllTasks中没有任务的情况', async () => {
+    jest.spyOn(taskManager, 'getTasks').mockResolvedValue([]);
+    jest.spyOn(taskManager['rewardManager'], 'claimAllRewards').mockResolvedValue();
+
+    await taskManager.executeAllTasks();
+
+    // 当没有任务时，不会调用claimAllRewards
+    expect(taskManager['rewardManager'].claimAllRewards).not.toHaveBeenCalled();
+  });
+
+  it('应该测试executeAllTasks中只有已完成任务的情况', async () => {
+    const mockTasks = [
+      {
+        id: '1',
+        name: '已完成任务',
+        type: TaskType.VIEW_POST,
+        progress: 1,
+        required: 1,
+        status: 1, // 已完成
+        scoreA: 10,
+        scoreB: 5
+      }
+    ];
+
+    jest.spyOn(taskManager, 'getTasks').mockResolvedValue(mockTasks);
+    jest.spyOn(taskManager['rewardManager'], 'claimAllRewards').mockResolvedValue();
+
+    await taskManager.executeAllTasks();
+
+    expect(taskManager['rewardManager'].claimAllRewards).toHaveBeenCalled();
+  });
 
 }); 

@@ -1,4 +1,11 @@
 import 'jest';
+import fs from 'fs';
+
+// 设置测试环境变量
+process.env.NODE_ENV = 'test';
+
+// Mock fs模块
+jest.mock('fs');
 
 // 全局测试配置
 beforeEach(() => {
@@ -10,6 +17,21 @@ beforeEach(() => {
   jest.spyOn(console, 'info').mockImplementation(() => {});
   jest.spyOn(console, 'warn').mockImplementation(() => {});
   jest.spyOn(console, 'error').mockImplementation(() => {});
+  
+  // 设置默认的fs mock
+  (fs.existsSync as jest.Mock).mockReturnValue(true);
+  (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify({
+    accounts: [],
+    globalUA: 'test-ua',
+    globalReferer: 'test-referer',
+    globalMinDelay: 1000,
+    globalMaxDelay: 3000,
+    globalSchedule: {
+      times: ["08:00", "12:00", "18:00"],
+      runOnStart: true
+    }
+  }));
+  (fs.writeFileSync as jest.Mock).mockImplementation(() => {});
 });
 
 // 全局测试工具
@@ -46,4 +68,25 @@ export const suppressConsole = () => {
 // 恢复console.log
 export const restoreConsole = (spy: jest.SpyInstance) => {
   spy.mockRestore();
+}; 
+
+// 创建测试用的ConfigManager
+export const createTestConfigManager = (config?: any) => {
+  const defaultConfig = {
+    accounts: [],
+    globalUA: 'test-ua',
+    globalReferer: 'test-referer',
+    globalMinDelay: 1000,
+    globalMaxDelay: 3000,
+    globalSchedule: {
+      times: ["08:00", "12:00", "18:00"],
+      runOnStart: true
+    }
+  };
+  
+  (fs.existsSync as jest.Mock).mockReturnValue(true);
+  (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(config || defaultConfig));
+  
+  const { ConfigManager } = require('../../configManager');
+  return new ConfigManager();
 }; 

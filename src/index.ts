@@ -26,6 +26,19 @@ async function main() {
   } catch (error) {
     log.error('脚本执行失败:');
     log.error(error instanceof Error ? error.message : String(error));
+    
+    // 如果是配置相关错误，提供更详细的帮助信息
+    if (error instanceof Error && (
+      error.message.includes('配置文件不存在') || 
+      error.message.includes('配置文件格式错误')
+    )) {
+      log.info('');
+      log.info('💡 配置问题解决方案:');
+      log.info('1. 确保 accounts.json 文件存在且格式正确');
+      log.info('2. 参考 accounts.example.json 的格式');
+      log.info('3. 检查 JSON 语法是否正确');
+    }
+    
     process.exit(1);
   }
 }

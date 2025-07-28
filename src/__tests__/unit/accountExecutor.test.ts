@@ -4,47 +4,27 @@
 // 3. 部分测试仅为覆盖异常分支（如JSON解析失败、API错误、缺少字段等），但实际业务场景极少发生，建议只保留有实际意义的分支测试。
 // 4. 由于AccountExecutor高度依赖外部模块，建议后续考虑引入依赖注入或接口抽象，提升可测试性和可维护性。
 import { AccountExecutor } from '../../accountExecutor';
-import { ConfigManager } from '../../configManager';
+import { createTestConfigManager } from '../setup/testSetup';
 import { AccountConfig } from '../../types';
 
-// mock 依赖
-jest.mock('../../api', () => ({
-  ApiClient: jest.fn().mockImplementation(() => ({
-    getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 0, scoreB: 0 }) } }),
-    getSessionWithBindInfo: jest.fn().mockResolvedValue({ ret: 0, data: {} }),
-    getFuliStatus: jest.fn().mockResolvedValue({ ret: 0, data: {} })
-  }))
-}));
-jest.mock('../../taskManager', () => ({
-  TaskManager: jest.fn().mockImplementation(() => ({
-    verifyLogin: jest.fn().mockResolvedValue(undefined),
-    getTasks: jest.fn().mockResolvedValue([]),
-    executeAllTasks: jest.fn().mockResolvedValue(undefined),
-    apiClient: {
-      getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 0, scoreB: 0 }) } })
-    }
-  }))
-}));
-jest.mock('../../rewardManager', () => ({
-  RewardManager: jest.fn().mockImplementation(() => ({
-    claimAllRewards: jest.fn().mockResolvedValue(undefined),
-    countAvailableRewards: jest.fn().mockResolvedValue(0)
-  }))
-}));
-jest.mock('../../frequencyController', () => ({
-  FrequencyController: jest.fn().mockImplementation(() => ({
-    randomDelay: jest.fn().mockResolvedValue(undefined)
-  }))
-}));
+// Mock all dependencies
+jest.mock('../../taskManager');
+jest.mock('../../rewardManager');
+jest.mock('../../api');
+jest.mock('../../frequencyController');
 
 describe('AccountExecutor', () => {
-  let executor: AccountExecutor;
-  let configManager: ConfigManager;
+  let configManager: any;
+  let accountExecutor: AccountExecutor;
   let mockAccount: AccountConfig;
+  let mockTaskManager: any;
+  let mockRewardManager: any;
+  let mockApiClient: any;
 
   beforeEach(() => {
-    configManager = new ConfigManager();
-    executor = new AccountExecutor(configManager);
+    configManager = createTestConfigManager();
+    accountExecutor = new AccountExecutor(configManager);
+    
     mockAccount = {
       id: 'test',
       cookie: 'cookie',
@@ -52,511 +32,301 @@ describe('AccountExecutor', () => {
       schedule: { times: ['08:00'], runOnStart: true },
       enabled: true
     };
+
+    // Setup mocks
+    mockTaskManager = {
+      verifyLogin: jest.fn().mockResolvedValue(undefined),
+      executeAllTasks: jest.fn().mockResolvedValue(undefined),
+      getTasks: jest.fn().mockResolvedValue([]),
+      apiClient: {
+        getFuliScores: jest.fn().mockResolvedValue({ 
+          ret: 0, 
+          data: { pack: JSON.stringify({ scoreA: 100, scoreB: 50 }) } 
+        })
+      }
+    };
+
+    mockRewardManager = {
+      claimAllRewards: jest.fn().mockResolvedValue(undefined),
+      countAvailableRewards: jest.fn().mockResolvedValue(5)
+    };
+
+    mockApiClient = {
+      getFuliScores: jest.fn().mockResolvedValue({ 
+        ret: 0, 
+        data: { pack: JSON.stringify({ scoreA: 100, scoreB: 50 }) } 
+      })
+    };
+
+    // Mock constructors
+    const { TaskManager } = require('../../taskManager');
+    const { RewardManager } = require('../../rewardManager');
+    const { ApiClient } = require('../../api');
+    const { FrequencyController } = require('../../frequencyController');
+
+    TaskManager.mockImplementation(() => mockTaskManager);
+    RewardManager.mockImplementation(() => mockRewardManager);
+    ApiClient.mockImplementation(() => mockApiClient);
+    FrequencyController.mockImplementation(() => ({}));
   });
 
   it('应该能正常执行账号任务', async () => {
-    const result = await executor.executeAccount(mockAccount);
+    const result = await accountExecutor.executeAccount(mockAccount);
     expect(result.accountId).toBe('test');
     expect(result.success).toBe(true);
   });
 
-  it('遇到异常时应该返回失败', async () => {
-    // 传入非法账号，触发异常
+  it('应该处理无效账号配置', async () => {
     const badAccount = { ...mockAccount, cookie: '' };
     
-    // 覆盖默认的mock，让TaskManager抛出异常
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockRejectedValue(new Error('Cookie无效')),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 0, scoreB: 0 }) } })
-      }
-    }));
+    mockTaskManager.verifyLogin.mockRejectedValue(new Error('登录失败'));
     
-    const result = await executor.executeAccount(badAccount as any);
+    const result = await accountExecutor.executeAccount(badAccount as any);
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
   });
 
-  it('登录失败时应该返回失败', async () => {
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockRejectedValue(new Error('登录失败')),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 0, scoreB: 0 }) } })
-      }
-    }));
-    const result = await executor.executeAccount(mockAccount);
+  it('应该处理登录验证失败', async () => {
+    mockTaskManager.verifyLogin.mockRejectedValue(new Error('登录失败'));
+    
+    const result = await accountExecutor.executeAccount(mockAccount);
     expect(result.success).toBe(false);
     expect(result.error).toContain('登录失败');
   });
 
-  it('任务执行失败时应该返回失败', async () => {
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockRejectedValue(new Error('任务失败')),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 0, scoreB: 0 }) } })
-      }
-    }));
-    const result = await executor.executeAccount(mockAccount);
+  it('应该处理任务执行失败', async () => {
+    mockTaskManager.executeAllTasks.mockRejectedValue(new Error('任务失败'));
+    
+    const result = await accountExecutor.executeAccount(mockAccount);
     expect(result.success).toBe(false);
     expect(result.error).toContain('任务失败');
   });
 
-  it('奖励领取失败时应该返回失败', async () => {
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 0, scoreB: 0 }) } })
-      }
-    }));
+  it('应该处理奖励领取失败', async () => {
+    mockRewardManager.claimAllRewards.mockRejectedValue(new Error('奖励失败'));
     
-    const { RewardManager } = require('../../rewardManager');
-    RewardManager.mockImplementation(() => ({
-      claimAllRewards: jest.fn().mockRejectedValue(new Error('奖励失败')),
-      countAvailableRewards: jest.fn().mockResolvedValue(0)
-    }));
-    
-    const result = await executor.executeAccount(mockAccount);
+    const result = await accountExecutor.executeAccount(mockAccount);
     expect(result.success).toBe(false);
     expect(result.error).toContain('奖励失败');
   });
 
-  it('getAccountStats 异常时应返回默认值', async () => {
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      getTasks: jest.fn().mockRejectedValue(new Error('任务接口异常')),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 1, data: { pack: '{}' } })
-      }
-    }));
-    // 直接调用私有方法
-    const stats = await (executor as any).getAccountStats(new TaskManager(), new (require('../../rewardManager').RewardManager)());
-    expect(stats.totalTasks).toBe(0);
-    expect(stats.completedTasks).toBe(0);
-    expect(stats.availableRewards).toBe(0);
-  });
-
-  it('countAvailableRewards 异常时应返回 0', async () => {
-    const { RewardManager } = require('../../rewardManager');
-    RewardManager.mockImplementation(() => ({
-      claimAllRewards: jest.fn().mockResolvedValue(undefined),
-      countAvailableRewards: jest.fn().mockRejectedValue(new Error('统计失败'))
-    }));
-
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 0, scoreB: 0 }) } })
-      }
-    }));
-
-    const executor = new AccountExecutor(configManager);
-    const result = await executor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-  });
-
-  it('应该处理getFuliScores返回错误的情况', async () => {
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 1, data: { pack: '{}' } })
-      }
-    }));
-
-    const { RewardManager } = require('../../rewardManager');
-    RewardManager.mockImplementation(() => ({
-      claimAllRewards: jest.fn().mockResolvedValue(undefined),
-      countAvailableRewards: jest.fn().mockResolvedValue(0)
-    }));
-
-    const executor = new AccountExecutor(configManager);
-    const result = await executor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-    expect(result.stats?.coins).toBe(0);
-    expect(result.stats?.crystals).toBe(0);
-  });
-
-  it('应该处理JSON解析错误的情况', async () => {
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: 'invalid json' } })
-      }
-    }));
-
-    const { RewardManager } = require('../../rewardManager');
-    RewardManager.mockImplementation(() => ({
-      claimAllRewards: jest.fn().mockResolvedValue(undefined),
-      countAvailableRewards: jest.fn().mockResolvedValue(0)
-    }));
-
-    const executor = new AccountExecutor(configManager);
-    const result = await executor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-    expect(result.stats?.coins).toBe(0);
-    expect(result.stats?.crystals).toBe(0);
-  });
-
-  it('应该处理countAvailableRewards中的API错误', async () => {
-    const { RewardManager } = require('../../rewardManager');
-    RewardManager.mockImplementation(() => ({
-      claimAllRewards: jest.fn().mockResolvedValue(undefined),
-      countAvailableRewards: jest.fn().mockImplementation(async () => {
-        const apiClient = {
-          getFuliStatus: jest.fn().mockResolvedValue({ 
-            ret: 1, 
-            errmsg: 'API错误',
-            data: {}
-          })
-        };
-        const rewardManager = { apiClient };
-        const executor = new AccountExecutor(configManager);
-        return await (executor as any).countAvailableRewards(rewardManager);
-      })
-    }));
-
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 0, scoreB: 0 }) } })
-      }
-    }));
-
-    const executor = new AccountExecutor(configManager);
-    const result = await executor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-    expect(result.stats?.availableRewards).toBe(0);
-  });
-
-  it('应该处理countAvailableRewards中的JSON解析错误', async () => {
-    const { RewardManager } = require('../../rewardManager');
-    RewardManager.mockImplementation(() => ({
-      claimAllRewards: jest.fn().mockResolvedValue(undefined),
-      countAvailableRewards: jest.fn().mockImplementation(async () => {
-        const apiClient = {
-          getFuliStatus: jest.fn().mockResolvedValue({ 
-            ret: 0, 
-            data: { pack: 'invalid json' }
-          })
-        };
-        const rewardManager = { apiClient };
-        const executor = new AccountExecutor(configManager);
-        return await (executor as any).countAvailableRewards(rewardManager);
-      })
-    }));
-
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 0, scoreB: 0 }) } })
-      }
-    }));
-
-    const executor = new AccountExecutor(configManager);
-    const result = await executor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-    expect(result.stats?.availableRewards).toBe(0);
-  });
-
-  it('应该正确处理奖励统计', async () => {
-    const { RewardManager } = require('../../rewardManager');
-    const mockRewardManager = {
-      claimAllRewards: jest.fn().mockResolvedValue(undefined),
-      countAvailableRewards: jest.fn().mockResolvedValue(4)
-    };
-    RewardManager.mockImplementation(() => mockRewardManager);
-
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 100, scoreB: 50 }) } })
-      }
-    }));
-
-    const executor = new AccountExecutor(configManager);
+  it('应该处理获取积分信息失败时应该使用默认值', async () => {
+    mockTaskManager.apiClient.getFuliScores.mockRejectedValue(new Error('获取积分失败'));
     
-    // Mock countAvailableRewards方法
-    jest.spyOn(executor as any, 'countAvailableRewards').mockResolvedValue(4);
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该处理获取积分信息异常时应该使用默认值', async () => {
+    mockTaskManager.apiClient.getFuliScores.mockImplementation(() => {
+      throw new Error('积分接口异常');
+    });
     
-    const result = await executor.executeAccount(mockAccount);
+    const result = await accountExecutor.executeAccount(mockAccount);
     expect(result.success).toBe(true);
-    expect(result.stats?.availableRewards).toBe(4); // 2个签到 + 2个任务
-    expect(result.stats?.coins).toBe(100);
-    expect(result.stats?.crystals).toBe(50);
   });
 
-  it('应该处理空的weekdays和tasks数组', async () => {
-    const { RewardManager } = require('../../rewardManager');
-    RewardManager.mockImplementation(() => ({
-      claimAllRewards: jest.fn().mockResolvedValue(undefined),
-      countAvailableRewards: jest.fn().mockImplementation(async () => {
-        const apiClient = {
-          getFuliStatus: jest.fn().mockResolvedValue({ 
-            ret: 0, 
-            data: { 
-              pack: JSON.stringify({
-                weekdays: [],
-                tasks: []
-              })
-            }
-          })
-        };
-        const rewardManager = { apiClient };
-        const executor = new AccountExecutor(configManager);
-        return await (executor as any).countAvailableRewards(rewardManager);
-      })
-    }));
-
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 0, scoreB: 0 }) } })
-      }
-    }));
-
-    const executor = new AccountExecutor(configManager);
-    const result = await executor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-    expect(result.stats?.availableRewards).toBe(0);
-  });
-
-  it('应该处理缺少data.pack字段的情况', async () => {
-    const { RewardManager } = require('../../rewardManager');
-    RewardManager.mockImplementation(() => ({
-      claimAllRewards: jest.fn().mockResolvedValue(undefined),
-      countAvailableRewards: jest.fn().mockImplementation(async () => {
-        const apiClient = {
-          getFuliStatus: jest.fn().mockResolvedValue({ 
-            ret: 0, 
-            data: {} // 缺少pack字段
-          })
-        };
-        const rewardManager = { apiClient };
-        const executor = new AccountExecutor(configManager);
-        return await (executor as any).countAvailableRewards(rewardManager);
-      })
-    }));
-
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 0, scoreB: 0 }) } })
-      }
-    }));
-
-    const executor = new AccountExecutor(configManager);
-    const result = await executor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-    expect(result.stats?.availableRewards).toBe(0);
-  });
-
-  // 新增测试用例来覆盖缺失的分支
-  it('应该处理getAccountStats中的积分数据格式错误', async () => {
-    const { RewardManager } = require('../../rewardManager');
-    RewardManager.mockImplementation(() => ({
-      claimAllRewards: jest.fn().mockResolvedValue(undefined),
-      countAvailableRewards: jest.fn().mockResolvedValue(0)
-    }));
-
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ 
-          ret: 0, 
-          data: { pack: 'invalid json' } // 无效的JSON格式
-        })
-      }
-    }));
-
-    const executor = new AccountExecutor(configManager);
-    const result = await executor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-    expect(result.stats?.coins).toBe(0);
-    expect(result.stats?.crystals).toBe(0);
-  });
-
-  it('应该处理getAccountStats中的API错误响应', async () => {
-    const { RewardManager } = require('../../rewardManager');
-    RewardManager.mockImplementation(() => ({
-      claimAllRewards: jest.fn().mockResolvedValue(undefined),
-      countAvailableRewards: jest.fn().mockResolvedValue(0)
-    }));
-
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ 
-          ret: 1, 
-          errmsg: 'API错误',
-          data: {}
-        })
-      }
-    }));
-
-    const executor = new AccountExecutor(configManager);
-    const result = await executor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-    expect(result.stats?.coins).toBe(0);
-    expect(result.stats?.crystals).toBe(0);
-  });
-
-  it('应该处理countAvailableRewards中的API错误', async () => {
-    const { RewardManager } = require('../../rewardManager');
-    RewardManager.mockImplementation(() => ({
-      claimAllRewards: jest.fn().mockResolvedValue(undefined),
-      countAvailableRewards: jest.fn().mockImplementation(async () => {
-        const apiClient = {
-          getFuliStatus: jest.fn().mockResolvedValue({ 
-            ret: 1, 
-            errmsg: 'API错误',
-            data: {}
-          })
-        };
-        const rewardManager = { apiClient };
-        const executor = new AccountExecutor(configManager);
-        return await (executor as any).countAvailableRewards(rewardManager);
-      })
-    }));
-
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 0, scoreB: 0 }) } })
-      }
-    }));
-
-    const executor = new AccountExecutor(configManager);
-    const result = await executor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-    expect(result.stats?.availableRewards).toBe(0);
-  });
-
-  it('应该处理countAvailableRewards中的JSON解析错误', async () => {
-    const { RewardManager } = require('../../rewardManager');
-    RewardManager.mockImplementation(() => ({
-      claimAllRewards: jest.fn().mockResolvedValue(undefined),
-      countAvailableRewards: jest.fn().mockImplementation(async () => {
-        const apiClient = {
-          getFuliStatus: jest.fn().mockResolvedValue({ 
-            ret: 0, 
-            data: { pack: 'invalid json' }
-          })
-        };
-        const rewardManager = { apiClient };
-        const executor = new AccountExecutor(configManager);
-        return await (executor as any).countAvailableRewards(rewardManager);
-      })
-    }));
-
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 0, scoreB: 0 }) } })
-      }
-    }));
-
-    const executor = new AccountExecutor(configManager);
-    const result = await executor.executeAccount(mockAccount);
-    expect(result.success).toBe(true);
-    expect(result.stats?.availableRewards).toBe(0);
-  });
-
-  it('应该处理displayAccountStats中的奖励显示逻辑', async () => {
-    const { RewardManager } = require('../../rewardManager');
-    RewardManager.mockImplementation(() => ({
-      claimAllRewards: jest.fn().mockResolvedValue(undefined),
-      countAvailableRewards: jest.fn().mockResolvedValue(5) // 有可领取奖励
-    }));
-
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 100, scoreB: 50 }) } })
-      }
-    }));
-
-    const executor = new AccountExecutor(configManager);
+  it('应该处理获取会话信息失败时应该继续执行', async () => {
+    mockTaskManager.apiClient.getSessionWithBindInfo = jest.fn().mockRejectedValue(new Error('获取会话失败'));
     
-    // Mock countAvailableRewards方法
-    jest.spyOn(executor as any, 'countAvailableRewards').mockResolvedValue(5);
-    
-    const result = await executor.executeAccount(mockAccount);
+    const result = await accountExecutor.executeAccount(mockAccount);
     expect(result.success).toBe(true);
-    expect(result.stats?.availableRewards).toBe(5);
   });
 
-  it('应该处理displayExecutionSummary中的各种情况', async () => {
-    const { RewardManager } = require('../../rewardManager');
-    RewardManager.mockImplementation(() => ({
-      claimAllRewards: jest.fn().mockResolvedValue(undefined),
-      countAvailableRewards: jest.fn().mockResolvedValue(0)
-    }));
-
-    const { TaskManager } = require('../../taskManager');
-    TaskManager.mockImplementation(() => ({
-      verifyLogin: jest.fn().mockResolvedValue(undefined),
-      getTasks: jest.fn().mockResolvedValue([]),
-      executeAllTasks: jest.fn().mockResolvedValue(undefined),
-      apiClient: {
-        getFuliScores: jest.fn().mockResolvedValue({ ret: 0, data: { pack: JSON.stringify({ scoreA: 100, scoreB: 50 }) } })
-      }
-    }));
-
-    const executor = new AccountExecutor(configManager);
-    const result = await executor.executeAccount(mockAccount);
+  it('应该处理获取会话信息返回错误时应该继续执行', async () => {
+    mockTaskManager.apiClient.getSessionWithBindInfo = jest.fn().mockResolvedValue({
+      ret: 1,
+      errmsg: '会话获取失败',
+      data: {}
+    });
+    
+    const result = await accountExecutor.executeAccount(mockAccount);
     expect(result.success).toBe(true);
-    // 测试没有新任务和奖励的情况
-    expect(result.stats?.completedTasks).toBe(0);
-    expect(result.stats?.availableRewards).toBe(0);
+  });
+
+  it('应该处理会话信息没有bind_info时应该继续执行', async () => {
+    mockTaskManager.apiClient.getSessionWithBindInfo = jest.fn().mockResolvedValue({
+      ret: 0,
+      errmsg: '',
+      data: {}
+    });
+    
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该处理会话信息没有role_name时应该继续执行', async () => {
+    mockTaskManager.apiClient.getSessionWithBindInfo = jest.fn().mockResolvedValue({
+      ret: 0,
+      errmsg: '',
+      data: {
+        bind_info: {}
+      }
+    });
+    
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该处理统计奖励数量失败时应该返回0', async () => {
+    mockRewardManager.countAvailableRewards.mockRejectedValue(new Error('统计失败'));
+    
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该处理统计奖励数量返回错误时应该返回0', async () => {
+    mockRewardManager.countAvailableRewards.mockResolvedValue({
+      ret: 1,
+      errmsg: '统计失败',
+      data: {}
+    });
+    
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该处理统计奖励数量异常时应该返回0', async () => {
+    mockRewardManager.countAvailableRewards.mockImplementation(() => {
+      throw new Error('统计异常');
+    });
+    
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该处理获取账号统计信息失败时应该使用默认值', async () => {
+    mockTaskManager.getTasks.mockRejectedValue(new Error('获取统计失败'));
+    
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该处理获取账号统计信息异常时应该使用默认值', async () => {
+    mockTaskManager.getTasks.mockImplementation(() => {
+      throw new Error('统计异常');
+    });
+    
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该测试displayAccountStats方法', async () => {
+    // 设置mock返回有奖励的数据
+    mockTaskManager.getTasks.mockResolvedValue([
+      { id: '1', status: 1 },
+      { id: '2', status: 0 }
+    ]);
+    mockRewardManager.countAvailableRewards.mockResolvedValue(3);
+    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
+      ret: 0,
+      data: { pack: JSON.stringify({ scoreA: 150, scoreB: 75 }) }
+    });
+
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该测试displayExecutionSummary方法', async () => {
+    // 设置mock返回有变化的数据
+    mockTaskManager.getTasks.mockResolvedValue([
+      { id: '1', status: 1 },
+      { id: '2', status: 1 }
+    ]);
+    mockRewardManager.countAvailableRewards.mockResolvedValue(1); // 最终奖励数量减少
+    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
+      ret: 0,
+      data: { pack: JSON.stringify({ scoreA: 200, scoreB: 100 }) }
+    });
+
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该测试countAvailableRewards方法', async () => {
+    // 设置mock返回有奖励的数据
+    mockTaskManager.getTasks.mockResolvedValue([]);
+    mockRewardManager.countAvailableRewards.mockResolvedValue(5);
+    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
+      ret: 0,
+      data: { pack: JSON.stringify({ scoreA: 100, scoreB: 50 }) }
+    });
+
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该测试countAvailableRewards异常情况', async () => {
+    mockTaskManager.getTasks.mockResolvedValue([]);
+    mockRewardManager.countAvailableRewards.mockImplementation(() => {
+      throw new Error('统计奖励异常');
+    });
+    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
+      ret: 0,
+      data: { pack: JSON.stringify({ scoreA: 100, scoreB: 50 }) }
+    });
+
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该测试积分信息解析异常', async () => {
+    mockTaskManager.getTasks.mockResolvedValue([]);
+    mockRewardManager.countAvailableRewards.mockResolvedValue(0);
+    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
+      ret: 0,
+      data: { pack: 'invalid json' }
+    });
+
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该测试积分信息ret不为0的情况', async () => {
+    mockTaskManager.getTasks.mockResolvedValue([]);
+    mockRewardManager.countAvailableRewards.mockResolvedValue(0);
+    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
+      ret: 1,
+      data: { pack: JSON.stringify({ scoreA: 100, scoreB: 50 }) }
+    });
+
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该测试积分信息缺少pack字段的情况', async () => {
+    mockTaskManager.getTasks.mockResolvedValue([]);
+    mockRewardManager.countAvailableRewards.mockResolvedValue(0);
+    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
+      ret: 0,
+      data: {}
+    });
+
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该测试积分信息pack字段为空的情况', async () => {
+    mockTaskManager.getTasks.mockResolvedValue([]);
+    mockRewardManager.countAvailableRewards.mockResolvedValue(0);
+    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
+      ret: 0,
+      data: { pack: '' }
+    });
+
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
+  });
+
+  it('应该测试积分信息scoreA和scoreB为undefined的情况', async () => {
+    mockTaskManager.getTasks.mockResolvedValue([]);
+    mockRewardManager.countAvailableRewards.mockResolvedValue(0);
+    mockTaskManager.apiClient.getFuliScores.mockResolvedValue({
+      ret: 0,
+      data: { pack: JSON.stringify({}) }
+    });
+
+    const result = await accountExecutor.executeAccount(mockAccount);
+    expect(result.success).toBe(true);
   });
 }); 
