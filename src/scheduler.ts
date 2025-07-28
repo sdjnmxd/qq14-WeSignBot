@@ -59,6 +59,9 @@ export class Scheduler {
     }
 
     log.success('调度器启动完成');
+    
+    // 保持调度器运行
+    log.info('调度器将持续运行，等待定时执行...');
   }
 
   /**
@@ -94,7 +97,7 @@ export class Scheduler {
     // 检查是否在启动时立即执行
     if (account.schedule.runOnStart) {
       log.info(`账号 ${account.name || account.id} 将在启动时立即执行`);
-      setTimeout(() => this.executeAccount(account), 1000); // 延迟1秒执行
+      // 立即执行由 setupAccountTimers 处理，这里不需要额外设置
     }
 
     // 设置定时执行
@@ -126,10 +129,15 @@ export class Scheduler {
     if (delay <= 0) {
       // 如果延迟为负数，立即执行
       log.info(`账号 ${account.name || account.id} 立即执行`);
-      const timer = setTimeout(() => this.executeAccount(account), 1000);
+      const timer = setTimeout(() => {
+        this.executeAccount(account);
+        // 执行完成后重新设置定时器
+        this.setupAccountTimers(account);
+      }, 1000);
       if (timer && typeof timer === 'object' && typeof timer.unref === 'function') {
         timer.unref();
       }
+      this.timers.set(account.id, timer);
     } else {
       // 设置定时器
       const timer = setTimeout(() => {
@@ -241,6 +249,11 @@ export class Scheduler {
     } finally {
       status.isRunning = false;
       this.executionStatus.set(account.id, status);
+      
+      // 执行完成后重新设置定时器
+      if (this.isRunning) {
+        this.setupAccountTimers(account);
+      }
     }
   }
 

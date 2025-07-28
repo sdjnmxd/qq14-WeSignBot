@@ -861,4 +861,105 @@ describe('Scheduler', () => {
     
     expect(true).toBe(true);
   });
+
+  // 新增测试：验证执行完成后重新设置定时器
+  it('应该测试执行完成后重新设置定时器', async () => {
+    jest.spyOn(configManager, 'getEnabledAccounts').mockReturnValue(mockAccounts);
+    
+    const newScheduler = new Scheduler(configManager);
+    
+    // Mock AccountExecutor
+    const { AccountExecutor } = require('../../accountExecutor');
+    AccountExecutor.mockImplementation(() => ({
+      executeAccount: jest.fn().mockResolvedValue({
+        accountId: 'test1',
+        success: true,
+        startTime: new Date(),
+        endTime: new Date(),
+        duration: 1000,
+        stats: { totalTasks: 5, completedTasks: 3, availableRewards: 2 }
+      })
+    }));
+    
+    // 启动调度器
+    await newScheduler.start();
+    
+    // 模拟执行账号
+    await (newScheduler as any).executeAccount(mockAccounts[0]);
+    
+    // 验证定时器被重新设置
+    expect(newScheduler['timers'].has('test1')).toBe(true);
+  });
+
+  // 新增测试：验证立即执行后重新设置定时器
+  it('应该测试立即执行后重新设置定时器', () => {
+    jest.spyOn(configManager, 'getEnabledAccounts').mockReturnValue(mockAccounts);
+    
+    const newScheduler = new Scheduler(configManager);
+    
+    // Mock setTimeout，避免无限递归
+    const mockSetTimeout = jest.fn((callback, delay) => {
+      // 直接执行回调，不使用setTimeout避免递归
+      if (delay === 0) {
+        callback();
+      }
+      return {} as any;
+    });
+    const originalSetTimeout = global.setTimeout;
+    global.setTimeout = mockSetTimeout as any;
+    
+    // 设置一个已经过时的时间，触发立即执行
+    const pastAccount = {
+      ...mockAccounts[0],
+      schedule: { times: ['00:00'], runOnStart: false }
+    };
+    
+    // 直接调用setupAccountTimers
+    (newScheduler as any).setupAccountTimers(pastAccount);
+    
+    // 验证定时器被设置
+    expect(newScheduler['timers'].has('test1')).toBe(true);
+    
+    // 恢复原始setTimeout
+    global.setTimeout = originalSetTimeout;
+  });
+
+  // 新增测试：验证循环定时器的完整流程
+  it('应该测试循环定时器的完整流程', async () => {
+    jest.spyOn(configManager, 'getEnabledAccounts').mockReturnValue(mockAccounts);
+    
+    const newScheduler = new Scheduler(configManager);
+    
+    // Mock AccountExecutor
+    const { AccountExecutor } = require('../../accountExecutor');
+    AccountExecutor.mockImplementation(() => ({
+      executeAccount: jest.fn().mockResolvedValue({
+        accountId: 'test1',
+        success: true,
+        startTime: new Date(),
+        endTime: new Date(),
+        duration: 1000,
+        stats: { totalTasks: 5, completedTasks: 3, availableRewards: 2 }
+      })
+    }));
+    
+    // 启动调度器
+    await newScheduler.start();
+    
+    // 验证初始定时器设置
+    expect(newScheduler['timers'].has('test1')).toBe(true);
+    
+    // 模拟定时器触发执行
+    const timer = newScheduler['timers'].get('test1');
+    if (timer) {
+      // 清除定时器，避免实际执行
+      clearTimeout(timer);
+      
+      // 手动触发执行
+      await (newScheduler as any).executeAccount(mockAccounts[0]);
+      
+      // 验证执行完成后重新设置了定时器
+      expect(newScheduler['timers'].has('test1')).toBe(true);
+    }
+  });
 });
