@@ -140,7 +140,16 @@ export class Scheduler {
     }
     
     // 显示下次执行时间
-    const nextTime = jobs[0]?.nextInvocation(); // 假设第一个job是主要job
+    let nextTime: Date | null = null;
+    for (const job of jobs) {
+      if (job) {
+        const jobNextTime = job.nextInvocation();
+        if (jobNextTime && (!nextTime || jobNextTime < nextTime)) {
+          nextTime = jobNextTime;
+        }
+      }
+    }
+    
     if (nextTime) {
       const now = new Date();
       const timeDiff = nextTime.getTime() - now.getTime();
@@ -323,9 +332,11 @@ export class Scheduler {
         // 找到所有job中最近的下次执行时间
         let nextTime: Date | null = null;
         for (const job of jobs) {
-          const jobNextTime = job.nextInvocation();
-          if (jobNextTime && (!nextTime || jobNextTime < nextTime)) {
-            nextTime = jobNextTime;
+          if (job) {
+            const jobNextTime = job.nextInvocation();
+            if (jobNextTime && (!nextTime || jobNextTime < nextTime)) {
+              nextTime = jobNextTime;
+            }
           }
         }
         
